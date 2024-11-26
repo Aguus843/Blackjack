@@ -70,11 +70,14 @@ public class consolaGrafica implements IVista {
                 }
                 if (jugadoresRestantes > 0 && !seCargaronJugadores) {
                     // proceso de carga de nickname y saldo del jugador
-                    if (esperandoNickname){
+                    if (esperandoNickname && txtEntrada.getText().matches("\\d*\\.?\\d")){
                         procesarCargaNickname();
-                    }else if (!txtEntrada.getText().matches("\\d*\\.?\\d+")){
+                    }
+                    else if (!txtEntrada.getText().matches("\\d*\\.?\\d+")){
+                        esperandoNickname = false;
                         controlador.setNickname(txtEntrada.getText());
                         procesarCargaSaldo();
+                        esperandoSaldo = true;
                     }else if (esperandoSaldo){
                         float saldo = Float.parseFloat(txtEntrada.getText());
                         controlador.setSaldo(saldo);
@@ -157,6 +160,9 @@ public class consolaGrafica implements IVista {
             }
         });
     }
+    private boolean checkIngreso(String ingreso){
+        return !ingreso.matches("\\d*\\.?\\d+");
+    }
     private boolean chequearSiTerminoPartida(){
         return controlador.getIndiceJugadorActual() == controlador.getCantidadJugadoresTotal();
     }
@@ -177,8 +183,8 @@ public class consolaGrafica implements IVista {
             return;
         }
         mostrarMensaje("Ingrese el nombre del jugador " + (cantJugadoresAgregados+1) + ": ");
-        esperandoNickname = false;
-        esperandoSaldo = true;
+        // esperandoNickname = false;
+        // esperandoSaldo = true;
 
     }
     private void procesarCargaSaldo() {
