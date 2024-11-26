@@ -234,7 +234,7 @@ public class consolaGrafica implements IVista {
         \\d+ -> uno o mas digitos, asegura que haya al menos un numero despues del punto decimal
          */
         if (!monto.matches("\\d*\\.?\\d+") && controlador.getNombreJugador() != null){
-            this.mostrarMensaje(controlador.getNombreJugador() + ": ingrese el monto a apostar (Saldo: $" + controlador.getSaldo() + "): ");
+            this.mostrarMensaje(controlador.getNombreJugador() + ": ingrese el monto a apostar (Saldo: $" + controlador.getSaldoJugadorActual() + "): ");
             return;
         }
         if (!Objects.equals(monto, "")){
@@ -295,7 +295,9 @@ public class consolaGrafica implements IVista {
             mostrarMensaje("Felicitaciones " + controlador.getNombreJugador() + " conseguiste BJ!");
             vaDecisionJugador = false;
             cambiarTurno(); // ya con BJ no se puede seguir pidiendo ni plantarse.
-            if (controlador.getIndiceJugadorActual() == controlador.getCantidadJugadoresTotal()){
+            if (controlador.getIndiceJugadorActual() != controlador.getCantidadJugadoresTotal()){
+                // MUESTRO LA MANO DEL SIGUIENTE JUGADOR
+                siguienteJugador();
             }
         }else if (estadoJugador == 2){
             mostrarMensaje("Usted pagó el seguro por un valor de ($" + controlador.getApuestaJugador()/2 + " pesos).");
@@ -306,7 +308,7 @@ public class consolaGrafica implements IVista {
             vaDecisionJugador = true;
         }else if (estadoJugador == 4){
             mostrarMensaje("Se pasó de 21. Perdió la ronda.");
-            controlador.cambiarTurnoJugador();
+            cambiarTurno();
         }else if (estadoJugador == 5){
             mostrarMenuOpcionesYaPidio();
             vaDecisionJugador = true;
@@ -676,7 +678,7 @@ public class consolaGrafica implements IVista {
         }else cambiarTurno();
         if (controlador.getIndiceJugadorActual() == controlador.getCantidadJugadoresTotal()){
             vaDecisionJugador = false;
-        }
+        }else siguienteJugador();
     }
     private void dividirMano(){
         mostrarMensaje("Dividiendo manos...");
@@ -738,8 +740,18 @@ public class consolaGrafica implements IVista {
     }
 
     public void mostrarCartasCrupier(){
+        mostrarMensaje("\nEl crupier tiene las siguientes cartas: ");
         for (Carta c : controlador.getManoCrupier()){
             mostrarMensaje(c.getValor() + " de " + c.getPalo());
+        }
+    }
+
+    private void siguienteJugador(){
+        try {
+            estadoJugador = checkEstadoMano();
+            if (estadoJugador >= 0) mostrarEstadosJugador(estadoJugador);
+        } catch (RemoteException e) {
+            throw new RuntimeException(e);
         }
     }
 }

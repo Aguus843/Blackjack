@@ -14,7 +14,7 @@ public class Mazo {
         // Tests
         // String[] valores = {"A", "J", "10", "K", "Q"};
         // String[] valores = {"A", "2", "3", "4", "5"};
-        // String[] valores = {"A", "2", "8"};
+        // String[] valores = {"J", "K"};
 
         // Inicializo las cartas con sus valores
         for (String palo : palos) {
