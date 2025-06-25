@@ -22,7 +22,7 @@ public class BlackjackApp {
         vista.iniciarJuego();
 
         /*
-        https://www.youtube.com/watch?v=nXiBcd3jLZY&ab_channel=WalterPanessi
+        https://www.youtube.c11om/watch?v=nXiBcd3jLZY&ab_channel=WalterPanessi
         Clase RMI (Link al repo de libreria RMI)
          */
     }
