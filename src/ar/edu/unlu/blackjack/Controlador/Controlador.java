@@ -1,4 +1,5 @@
 package ar.edu.unlu.blackjack.Controlador;
+import ar.edu.unlu.blackjack.Enumerado.Evento;
 import ar.edu.unlu.blackjack.Modelo.*;
 import ar.edu.unlu.blackjack.Vista.IVista;
 import ar.edu.unlu.rmimvc.cliente.IControladorRemoto;
@@ -8,7 +9,7 @@ import java.rmi.RemoteException;
 import java.util.List;
 
 public class Controlador implements IControladorRemoto {
-    private BlackjackJuego modelo;
+    private IBlackjackJuego modelo;
     private IVista vista;
 
     public Controlador(IVista vista){
@@ -19,7 +20,7 @@ public class Controlador implements IControladorRemoto {
         modelo.configurarJugadores(nickname, saldo);
     }
 
-    public void setModelo(BlackjackJuego modelo){
+    public void setModelo(IBlackjackJuego modelo){
         this.modelo = modelo;
     }
 
@@ -193,7 +194,7 @@ public class Controlador implements IControladorRemoto {
     }
 
     public List<Mano> getManosJugador(){
-        return modelo.getManosJugador();
+        return modelo.manosJugador();
     }
 
     public List<Carta> getCartasMano(){
@@ -257,7 +258,7 @@ public class Controlador implements IControladorRemoto {
     }
 
     public boolean getTieneBlackjackPorIndiceMano(int indice){
-        return modelo.getManosJugador().get(indice).tieneBlackjack();
+        return modelo.manosJugador().get(indice).tieneBlackjack();
     }
 
     public void setJugadorDividio(boolean b){
@@ -300,13 +301,13 @@ public class Controlador implements IControladorRemoto {
     }
 
     /**
-     * @param t
+     * @param
      * @param <T>
      * @throws RemoteException
      */
     @Override
-    public <T extends IObservableRemoto> void setModeloRemoto(T t) throws RemoteException {
-
+    public <T extends IObservableRemoto> void setModeloRemoto(T modeloRemoto) throws RemoteException {
+        this.modelo = (IBlackjackJuego) modeloRemoto;
     }
 
     /**
@@ -406,6 +407,8 @@ public class Controlador implements IControladorRemoto {
                 case MOSTRAR_MANO_CRUPIER:
                     this.vista.mostrarPuntuacionParcialCrupier();
                     break;
+                case NOTIFICAR_TURNO_JUGADOR:
+                    this.vista.notificarTurnoJugador();
                 default:
                     break;
             }

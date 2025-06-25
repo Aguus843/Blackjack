@@ -1,5 +1,6 @@
 package ar.edu.unlu.blackjack.Modelo;
 
+import ar.edu.unlu.blackjack.Enumerado.Evento;
 import ar.edu.unlu.rmimvc.observer.ObservableRemoto;
 
 import java.rmi.RemoteException;
@@ -10,45 +11,59 @@ public class BlackjackJuego extends ObservableRemoto implements IBlackjackJuego 
     private final Mazo mazo;
     private final List<Jugador> jugadores;
     private final Crupier crupier;
+    private Regla regla;
+    private List<Ronda> rondas;
     private int cantidadJugadores;
     private int indiceJugador;
     private String nickname;
     private float saldo;
 
     public BlackjackJuego() {
+        this.regla = new Regla();
+        this.rondas = new ArrayList<>();
         mazo = new Mazo();
         crupier = new Crupier();
         jugadores = new ArrayList<>();
         this.indiceJugador = 0;
     }
+    @Override
     public Crupier getCrupier(){
         return crupier;
     }
+    @Override
     public Mazo getMazo(){
         return mazo;
     }
+    @Override
     public List<Jugador> getJugadores(){
         return jugadores;
     }
+    @Override
     public void setNickname(String nickname) {
         this.nickname = nickname;
     }
+    @Override
     public void setSaldo(float saldo) {
         this.saldo = saldo;
     }
+    @Override
     public String getNickname() {
         return nickname;
     }
+    @Override
     public float getSaldo() {
         return saldo;
     }
+    @Override
     public Jugador getJugadorActualTurno(){
         return jugadores.get(indiceJugador);
     }
+    @Override
     public void cambiarTurno(){
         if (indiceJugador == jugadores.size()) this.indiceJugador = 0;
         else this.indiceJugador++;
     }
+    @Override
     public void setIndiceJugador(int indice){
         this.indiceJugador = indice;
     }
@@ -88,7 +103,7 @@ public class BlackjackJuego extends ObservableRemoto implements IBlackjackJuego 
     public boolean crupierSePaso21(){
         return crupier.getPuntaje() > 21;
     }
-    public List<Mano> getManosJugador(){
+    public List<Mano> manosJugador(){
         return jugadores.get(indiceJugador).getManos();
     }
     @Override
@@ -103,10 +118,6 @@ public class BlackjackJuego extends ObservableRemoto implements IBlackjackJuego 
     public void setApuesta(Jugador jugador, float monto) throws RemoteException {
         jugador.setApuesta(monto);
         notificarObservadores(Evento.JUGADOR_APOSTO);
-    }
-
-    public boolean getPagoSeguroJugador(){
-        return getJugadorActualTurno().getPagoSeguro();
     }
 
     // ----------- METODOS --------------
@@ -150,10 +161,10 @@ public class BlackjackJuego extends ObservableRemoto implements IBlackjackJuego 
             if (crupier.multiplesManos()){
                 // mano 1
                 notificarObservadores(Evento.PUNTUACION_MANO1);
-                if (getManosJugador().get(0).tieneBlackjack()){
+                if (manosJugador().get(0).tieneBlackjack()){
                     notificarObservadores(Evento.CRUPIER_BLACKJACK_Y_EMPATE);
                     devolverApuesta(getJugadorActualTurno(), getJugadorActualTurno().getApuesta());
-                }else if (getPagoSeguroJugador()){
+                }else if (getJugadorActualTurno().getPagoSeguro()){
                     notificarObservadores(Evento.DEVUELTO_POR_SEGURO);
                     devolverApuesta(getJugadorActualTurno(), getJugadorActualTurno().getApuesta());
                 }else{
@@ -161,7 +172,7 @@ public class BlackjackJuego extends ObservableRemoto implements IBlackjackJuego 
                 }
                 // mano 2
                 notificarObservadores(Evento.PUNTUACION_MANO2);
-                if (getManosJugador().get(1).tieneBlackjack()){
+                if (manosJugador().get(1).tieneBlackjack()){
                     notificarObservadores(Evento.CRUPIER_BLACKJACK_Y_EMPATE);
                     devolverApuesta(getJugadorActualTurno(), getJugadorActualTurno().getApuestaMano2());
                 }else{
@@ -171,7 +182,7 @@ public class BlackjackJuego extends ObservableRemoto implements IBlackjackJuego 
                 if (getJugadorActualTurno().tieneBlackjack()){
                     notificarObservadores(Evento.CRUPIER_BLACKJACK_Y_EMPATE);
                     devolverApuesta(getJugadorActualTurno(), getJugadorActualTurno().getApuesta());
-                }else if (getPagoSeguroJugador()){
+                }else if (getJugadorActualTurno().getPagoSeguro()){
                     notificarObservadores(Evento.DEVUELTO_POR_SEGURO);
                     devolverApuesta(getJugadorActualTurno(), getJugadorActualTurno().getApuesta());
                 }else{
@@ -288,6 +299,7 @@ public class BlackjackJuego extends ObservableRemoto implements IBlackjackJuego 
         else notificarObservadores(Evento.CRUPIER_SE_PLANTA);
     }
 
+    @Override
     public void mostrarManoJugador() throws RemoteException {
         notificarObservadores(Evento.ESPACIADOR_EN_CHAT);
         notificarObservadores(Evento.MANO);
@@ -295,10 +307,26 @@ public class BlackjackJuego extends ObservableRemoto implements IBlackjackJuego 
         notificarObservadores(Evento.ESPACIADOR_EN_CHAT);
     }
 
+    @Override
     public void mostrarManoCrupier() throws RemoteException {
         notificarObservadores(Evento.ESPACIADOR_EN_CHAT);
         notificarObservadores(Evento.MOSTRAR_MANO_CRUPIER);
         notificarObservadores(Evento.PUNTUACION_FINAL_CRUPIER);
         notificarObservadores(Evento.ESPACIADOR_EN_CHAT);
+    }
+
+    public void iniciarPartida() throws RemoteException {
+        var yaRepartio = false;
+        if (getIndice() == getCantidadJugadores()){
+            turnoCrupier();
+        }else{
+            while (getIndice() != getCantidadJugadores() && !yaRepartio){
+                repartirCartasIniciales(getJugadorActualTurno());
+                cambiarTurno();
+            }
+            yaRepartio = true;
+            if (this.indiceJugador == this.cantidadJugadores) cambiarTurno(); // seteo el turno en 0
+
+        }
     }
 }

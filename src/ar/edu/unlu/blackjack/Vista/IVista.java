@@ -12,6 +12,10 @@ public interface IVista {
     void mostrarManosDivididasJugadorVista();
     void mostrarPuntuacionParcialCrupier();
     void cicloPartida();
+    void notificarTurnoJugador();
+    void mostrarManoJugador();
+    void mostrarManoCrupier();
+    void siguienteJugador();
 
     void mostrarPuntuacionParcial();
 }

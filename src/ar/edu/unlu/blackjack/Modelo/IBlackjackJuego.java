@@ -3,8 +3,34 @@ package ar.edu.unlu.blackjack.Modelo;
 import ar.edu.unlu.rmimvc.observer.IObservableRemoto;
 
 import java.rmi.RemoteException;
+import java.util.List;
 
 public interface IBlackjackJuego extends IObservableRemoto {
+    Crupier getCrupier();
+
+    Mazo getMazo();
+
+    void setIndiceJugador(int indice);
+
+    List<Mano> manosJugador();
+
+    List<Jugador> getJugadores();
+
+    void setNickname(String nickname);
+
+    void setSaldo(float saldo);
+
+    String getNickname();
+
+    float getSaldo();
+
+    void mostrarManoJugador() throws RemoteException;
+
+    void mostrarManoCrupier() throws RemoteException;
+
+    void cambiarTurno();
+
+    Jugador getJugadorActualTurno();
 
     Mano getManoJugador();
 

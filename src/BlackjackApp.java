@@ -1,5 +1,6 @@
 import ar.edu.unlu.blackjack.Controlador.Controlador;
 import ar.edu.unlu.blackjack.Modelo.BlackjackJuego;
+import ar.edu.unlu.blackjack.Modelo.IBlackjackJuego;
 import ar.edu.unlu.blackjack.Vista.ConsolaGrafica.consolaGrafica;
 
 import java.rmi.RemoteException;
@@ -7,7 +8,7 @@ import java.rmi.RemoteException;
 public class BlackjackApp {
     public static void main(String[] args) {
         // Consola Grafica
-        BlackjackJuego modelo = new BlackjackJuego();
+        IBlackjackJuego modelo = new BlackjackJuego();
         consolaGrafica vista = new consolaGrafica();
         Controlador controlador = new Controlador(vista);
         try {
@@ -16,15 +17,13 @@ public class BlackjackApp {
             throw new RuntimeException(e);
         }
         controlador.setModelo(modelo);
+        // controlador.setModeloRemoto((T)modelo);
         vista.setControlador(controlador);
         vista.iniciarJuego();
 
-        // Consola Normal
-//        IVista vistaConsola = (IVista) new VistaConsola();
-//        Controlador controlador2 = new Controlador(vistaConsola);
-//        modelo.addObserver(controlador2);
-//        vistaConsola.setControlador(controlador2);
-//        controlador2.setModelo(new BlackjackJuego());
-//        vistaConsola.iniciarJuego();
+        /*
+        https://www.youtube.com/watch?v=nXiBcd3jLZY&ab_channel=WalterPanessi
+        Clase RMI (Link al repo de libreria RMI)
+         */
     }
 }

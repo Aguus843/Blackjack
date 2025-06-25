@@ -145,4 +145,9 @@ public class Jugador {
         }
         return false;
     }
+
+    public boolean debeSeguirJugando(){
+        return sePlanto || tieneBlackjack() || getManoActual().sePaso21();
+    }
+    // verifico cualquiera de las posibilidades para saber si el jugador debe seguir jugando o no
 }

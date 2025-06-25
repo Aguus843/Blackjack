@@ -70,7 +70,7 @@ public class consolaGrafica implements IVista {
                 }
                 if (jugadoresRestantes > 0 && !seCargaronJugadores) {
                     // proceso de carga de nickname y saldo del jugador
-                    if (esperandoNickname && txtEntrada.getText().matches("\\d*\\.?\\d")){
+                    if (esperandoNickname && txtEntrada.getText().matches("\\d*\\.?\\d")){ // verifica patrones de numeros => 1+ digitos ingresados, usar "." como decimal y +1 digitos post "."
                         procesarCargaNickname();
                     }
                     else if (!txtEntrada.getText().matches("\\d*\\.?\\d+")){
@@ -97,6 +97,7 @@ public class consolaGrafica implements IVista {
                     procesarCargaApuestas(txtEntrada.getText());
                     if (jugadoresRestantes == 0){
                         controlador.setIndiceJugador(0);
+                        partidaComenzada(); // setea flag de partida comenzada
                         mostrarMensaje("Comenzando partida...");
                         cicloPartida();
                         if (estadoJugador < 0){
@@ -159,9 +160,6 @@ public class consolaGrafica implements IVista {
                 txtEntrada.setText("");
             }
         });
-    }
-    private boolean checkIngreso(String ingreso){
-        return !ingreso.matches("\\d*\\.?\\d+");
     }
     private boolean chequearSiTerminoPartida(){
         return controlador.getIndiceJugadorActual() == controlador.getCantidadJugadoresTotal();
@@ -405,34 +403,6 @@ public class consolaGrafica implements IVista {
             mostrarMensaje("El puntaje actual es de: " + (controlador.getPuntajeMano()-10) + "/" + controlador.getPuntajeMano());
         }else mostrarMensaje("El puntaje del jugador es de: " + controlador.getPuntajeMano());
     }
-
-//    @Override
-//    public void mostrarManoJugadorVista() {
-//        mostrarMensaje("");
-//        int sumatoriaPuntaje = 0;
-//        int aux = 0;
-//        int ases = 0;
-//        mostrarMensaje(controlador.getNombreJugador() + " tiene las siguientes cartas:");
-//        for (Carta cartaJugador : controlador.getCartasMano()) {
-//            mostrarMensaje(cartaJugador.getValor() + " de " + cartaJugador.getPalo());
-//            sumatoriaPuntaje += cartaJugador.getValorNumerico();
-//            if (cartaJugador.getValorNumerico() == 11) ases++;
-//        }
-//        while (sumatoriaPuntaje > 21 && ases > 0){
-//            aux = sumatoriaPuntaje;
-//            sumatoriaPuntaje -= 10;
-//            ases--;
-//            if (ases == 1){
-//                aux = sumatoriaPuntaje;
-//                sumatoriaPuntaje -= 10;
-//                ases--;
-//            }
-//        }
-//        if ((controlador.jugadorActualTieneAs() && sumatoriaPuntaje <= 20) && aux < 21){
-//            mostrarMensaje("El puntaje actual es de: " + (controlador.getPuntajeMano()-10) + "/" + controlador.getPuntajeMano());
-//        }else mostrarMensaje("El puntaje del jugador es de: " + controlador.getPuntajeMano());
-//        mostrarMensaje("");
-//    }
 
     /**
      * Metodo donde muestra las manos del jugador cuando divide
@@ -745,14 +715,42 @@ public class consolaGrafica implements IVista {
             mostrarMensaje(c.getValor() + " de " + c.getPalo());
         }
     }
-
-    private void siguienteJugador(){
+    @Override
+    public void siguienteJugador(){
         try {
             estadoJugador = checkEstadoMano();
             if (estadoJugador >= 0) mostrarEstadosJugador(estadoJugador);
         } catch (RemoteException e) {
             throw new RuntimeException(e);
         }
+    }
+    private void partidaComenzada(){
+        controlador.setIndiceJugador(controlador.getCantidadJugadoresTotal()-1);
+        if (controlador.getManosJugador().size() == 2) flagArrancoPartida = true;
+        controlador.setIndiceJugador(0);
+    }
+
+    @Override
+    public void mostrarManoJugador(){
+        mostrarMensaje("========================================================");
+        mostrarCartasJugador();
+        mostrarPuntuacionParcial();
+        mostrarMensaje("========================================================");
+    }
+    @Override
+    public void mostrarManoCrupier(){
+        mostrarMensaje("========================================================");
+        mostrarCartasCrupier();
+        mostrarPuntuacionParcialCrupier();
+        mostrarMensaje("========================================================");
+    }
+
+    @Override
+    public void notificarTurnoJugador(){
+        mostrarMensaje("Es el turno de: " + controlador.getNombreJugador() + "\n");
+        mostrarMensaje("El saldo del jugador es de: " + controlador.getSaldoJugadorActual());
+        mostrarMensaje("El crupier tiene: " + controlador.crupierMuestraPrimerCarta());
+        mostrarManoJugador();
     }
 }
 
