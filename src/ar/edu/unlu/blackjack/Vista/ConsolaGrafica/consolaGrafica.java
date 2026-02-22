@@ -7,750 +7,1278 @@ import ar.edu.unlu.blackjack.Vista.IVista;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.rmi.RemoteException;
-import java.util.Objects;
 import java.util.List;
 
 public class consolaGrafica implements IVista {
-    private final JFrame frame;
+    private JFrame frame;
     private JPanel contentPane;
     private JButton btnEnter;
     private JTextField txtEntrada;
     private JTextArea txtSalida;
-
-    Controlador controlador;
-    private int jugadoresRestantes;
-    private int cantJugadoresAgregados;
-    private int estadoCantidadJugadores;
+    private Controlador controlador;
+    private boolean enSalaEspera;
+    private boolean misDatosConfigurados;
     private boolean esperandoNickname;
-    private boolean flagArrancoPartida;
-    private int estadoJugador;
-    private boolean vaDecisionJugador;
-    private boolean flag;
-    private boolean yaRepartio;
     private boolean esperandoSaldo;
-    private boolean seCargaronJugadores;
-    private boolean inicioMano2;
+
+    private boolean juegoComenzado;
+    private boolean faseApuestas;
+    private boolean faseJuego;
+    private boolean esmiTurno;
+    private boolean esperandoDecision;
+
+    private String nicknameTemporal;
+    private float saldoTemporal;
+    private boolean enVotacion;
+    private boolean votacionMostrada;
 
     public consolaGrafica() {
-        frame = new JFrame("Consola Blackjack");
-        frame.setContentPane(contentPane);
+        iniciarConsola();
+        configurarApariencia();
+        inicializarEstados();
+        configurarEntradas();
+    }
+
+    private void iniciarConsola() {
+        frame = new JFrame("Consola Gráfica - Blackjack :: Agustín Weisbek");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        // frame.pack();
+        frame.setSize(700, 500);
         frame.setLocationRelativeTo(null);
-        txtSalida.setBackground(Color.BLACK);
-        txtSalida.setForeground(Color.WHITE);
-        frame.setSize(600, 400);
+
+        contentPane = new JPanel();
+        contentPane.setLayout(new BorderLayout(5, 5));
+
+        txtSalida = new JTextArea();
         txtSalida.setEditable(false);
-        txtSalida.setAutoscrolls(true);
         txtSalida.setLineWrap(true);
-        estadoJugador = -1;
-        jugadoresRestantes = 0;
-        cantJugadoresAgregados = 0;
-        estadoCantidadJugadores = 1;
-        esperandoNickname = true;
-        flagArrancoPartida = false;
-        yaRepartio = false;
-        esperandoSaldo = false;
-        seCargaronJugadores = false;
-        inicioMano2 = false;
+        txtSalida.setWrapStyleWord(true);
+        txtSalida.setFont(new Font("Consolas", Font.PLAIN, 13));
 
+        JScrollPane scrollPane = new JScrollPane(txtSalida);
+        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
 
-        // Configuro para que el botón "Enviar" funcione con enter
+        JPanel panelInferior = new JPanel(new BorderLayout(5, 0));
+
+        txtEntrada = new JTextField();
+        txtEntrada.setFont(new Font("Consolas", Font.PLAIN, 13));
+
+        btnEnter = new JButton("Enviar");
+        btnEnter.setPreferredSize(new Dimension(100, 30));
+
+        panelInferior.add(txtEntrada, BorderLayout.CENTER);
+        panelInferior.add(btnEnter, BorderLayout.EAST);
+
+        contentPane.add(scrollPane, BorderLayout.CENTER);
+        contentPane.add(panelInferior, BorderLayout.SOUTH);
+
+        frame.setContentPane(contentPane);
         frame.getRootPane().setDefaultButton(btnEnter);
+    }
 
-        btnEnter.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                txtSalida.append(txtEntrada.getText() + "\n");
-                if (estadoCantidadJugadores == 1){
-                    solicitarCantidadJugadores(txtEntrada.getText().toLowerCase());
-                }
-                if (jugadoresRestantes > 0 && !seCargaronJugadores) {
-                    // proceso de carga de nickname y saldo del jugador
-                    if (esperandoNickname && txtEntrada.getText().matches("\\d*\\.?\\d")){ // verifica patrones de numeros => 1+ digitos ingresados, usar "." como decimal y +1 digitos post "."
-                        procesarCargaNickname();
-                    }
-                    else if (!txtEntrada.getText().matches("\\d*\\.?\\d+")){
-                        esperandoNickname = false;
-                        controlador.setNickname(txtEntrada.getText());
-                        procesarCargaSaldo();
-                        esperandoSaldo = true;
-                    }else if (esperandoSaldo){
-                        float saldo = Float.parseFloat(txtEntrada.getText());
-                        controlador.setSaldo(saldo);
-                        esperandoNickname = false;
-                        esperandoSaldo = false;
-                        cargarJugador();
-                    }
-                    if (jugadoresRestantes == 0){
-                        controlador.setIndiceJugador(0);
-                        mostrarMensaje("Comenzando la carga de apuestas...");
-                        procesarCargaApuestas("");
-                        seCargaronJugadores = true;
-                        jugadoresRestantes = cantJugadoresAgregados;
-                        controlador.setCantidadJugadoresTotales(cantJugadoresAgregados);
-                    }
-                }else if (jugadoresRestantes > 0){
-                    procesarCargaApuestas(txtEntrada.getText());
-                    if (jugadoresRestantes == 0){
-                        controlador.setIndiceJugador(0);
-                        partidaComenzada(); // setea flag de partida comenzada
-                        mostrarMensaje("Comenzando partida...");
-                        cicloPartida();
-                        if (estadoJugador < 0){
-                            try {
-                                estadoJugador = checkEstadoMano();
-                            } catch (RemoteException ex) {
-                                throw new RuntimeException(ex);
-                            }
-                            if (estadoJugador >= 0) mostrarEstadosJugador(estadoJugador);
-                        }
-                    }
-                    // ------- lógica partida comenzada --------
-                }else if (flagArrancoPartida){
-                    try {
-                        procesarDecisionJugador(txtEntrada.getText().toLowerCase(), controlador.manoAUsar());
-                    } catch (RemoteException ex) {
-                        throw new RuntimeException(ex);
-                    }
-                    if (!chequearSiTerminoPartida()){
-                        if (estadoJugador < 0 && controlador.getJugadorDividio()){
-                            estadoJugador = checkEstadoManosDivididas(controlador.manoAUsar());
-                            if (estadoJugador >= 0) mostrarEstadosJugador(estadoJugador);
-                        }
-                    }else if (estadoJugador < 0 && !flag){ // flag -> jugador intento dividir
-                        try {
-                            estadoJugador = checkEstadoMano();
-                        } catch (RemoteException ex) {
-                            throw new RuntimeException(ex);
-                        }
-                        if (estadoJugador > 0) mostrarEstadosJugador(estadoJugador);
-                    }
-                }else if (estadoJugador >= 0){
-                    mostrarEstadosJugador(estadoJugador);
-                    if (estadoJugador == 0 || estadoJugador > 1) {
-                        try {
-                            procesarDecisionJugador(txtEntrada.getText().toLowerCase(), controlador.manoAUsar());
-                        } catch (RemoteException ex) {
-                            throw new RuntimeException(ex);
-                        }
-                    }
-                }else if (vaDecisionJugador){
-                    try {
-                        procesarDecisionJugador(txtEntrada.getText().toLowerCase(), controlador.manoAUsar());
-                    } catch (RemoteException ex) {
-                        throw new RuntimeException(ex);
-                    }
-                }
+    private void configurarApariencia() {
+        txtSalida.setBackground(Color.BLACK);
+        txtSalida.setForeground(Color.GREEN);
+        txtSalida.setCaretColor(Color.GREEN);
+        txtSalida.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        contentPane.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+    }
 
-                // condición para chequear si termino la partida contando el índice de jugadores -> si es fin termina y el crupier agarra cartas
-                if (chequearSiTerminoPartida() && flagArrancoPartida){
-                    try {
-                        controlador.turnoCrupier();
-                    } catch (RemoteException ex) {
-                        throw new RuntimeException(ex);
-                    }
-                    procesarGanadores();
-                    reiniciarPartida();
-                }
-                txtSalida.setCaretPosition(txtSalida.getDocument().getLength());
+    private void inicializarEstados() {
+        enSalaEspera = true;
+        misDatosConfigurados = false;
+        esperandoNickname = true;
+        esperandoSaldo = false;
+
+        juegoComenzado = false;
+        faseApuestas = false;
+        faseJuego = false;
+        esmiTurno = false;
+        esperandoDecision = false;
+        enVotacion = false;
+        votacionMostrada = false; // flag para evitar que el mensaje de votacion se muestre mas de una vez
+    }
+
+    private void configurarEntradas() {
+        btnEnter.addActionListener(e -> procesarEntrada());
+        txtEntrada.addActionListener(e -> procesarEntrada());
+    }
+
+    private void procesarEntrada() {
+        String entrada = txtEntrada.getText().trim();
+
+        if (entrada.isEmpty()) {
+            return;
+        }
+
+        txtSalida.append("> " + entrada + "\n");
+
+        try {
+            // datos iniciales (nickname y saldo)
+            if (enSalaEspera && !misDatosConfigurados) {
+                procesarConfiguracionInicial(entrada);
                 txtEntrada.setText("");
+                txtSalida.setCaretPosition(txtSalida.getDocument().getLength());
+                return;
             }
+
+            // Comando COMENZAR en el lobby
+            if (enSalaEspera && misDatosConfigurados && !juegoComenzado) {
+                procesarComandoComenzar(entrada);
+                txtEntrada.setText("");
+                txtSalida.setCaretPosition(txtSalida.getDocument().getLength());
+                return;
+            }
+
+            if (enVotacion){
+                procesarVoto(entrada);
+                txtEntrada.setText("");
+                txtSalida.setCaretPosition(txtSalida.getDocument().getLength());
+                return;
+            }
+            if (entrada.equalsIgnoreCase("saldo")) {
+                mostrarMensaje("\nTu saldo actual: $" + String.format("%.2f", controlador.getSaldoJugadorActual()) + "\n\n");
+                txtEntrada.setText("");
+                txtSalida.setCaretPosition(txtSalida.getDocument().getLength());
+                return;
+            }
+
+            if (entrada.equalsIgnoreCase("ranking")) {
+                mostrarRanking();
+                txtEntrada.setText("");
+                txtSalida.setCaretPosition(txtSalida.getDocument().getLength());
+                return;
+            }
+
+            if (entrada.toLowerCase().startsWith("recargar")) {
+                procesarRecarga(entrada);
+                txtEntrada.setText("");
+                txtSalida.setCaretPosition(txtSalida.getDocument().getLength());
+                return;
+            }
+
+            // Verificar que el juego haya comenzado
+            if (!juegoComenzado) {
+                mostrarMensaje("El juego todavía no empezó.\n");
+                txtEntrada.setText("");
+                txtSalida.setCaretPosition(txtSalida.getDocument().getLength());
+                return;
+            }
+
+            // Fase de apuestas
+            if (faseApuestas) {
+                if (esmiTurno) {
+                    procesarApuesta(entrada);
+                } else {
+                    mostrarMensaje("Esperando tu turno para apostar...\n");
+                }
+                txtEntrada.setText("");
+                txtSalida.setCaretPosition(txtSalida.getDocument().getLength());
+                return;
+            }
+
+            // Fase de juego
+            if (faseJuego) {
+                if (esmiTurno && esperandoDecision) {
+                    procesarDecisionJugador(entrada.toLowerCase());
+                } else if (!esmiTurno) {
+                    mostrarMensaje("Esperando tu turno para jugar...\n");
+                } else {
+                    mostrarMensaje("No podés realizar acciones en este momento. Tenes que esperar tu turno!\n");
+                }
+                txtEntrada.setText("");
+                txtSalida.setCaretPosition(txtSalida.getDocument().getLength());
+                return;
+            }
+
+            // mensaje de error
+            mostrarMensaje("Estado del juego no reconocido.\n");
+
+        } catch (RemoteException ex) {
+        } catch (NumberFormatException ex) {
+            mostrarMensaje("ERROR: Ingresa un número válido.\n");
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+
+        txtEntrada.setText("");
+        txtSalida.setCaretPosition(txtSalida.getDocument().getLength());
+    }
+
+    private void mostrarRanking() {
+        try {
+            String rankingRaw = controlador.getRankingFormateado();
+
+            mostrarMensaje("\n");
+            mostrarMensaje(linea(55) + "\n");
+            mostrarMensaje("||" + "              TOP 5 - RANKING JUGADORES           " + "||\n");
+            mostrarMensaje(linea(55) + "\n");
+
+            if (rankingRaw == null || rankingRaw.isBlank()) {
+                mostrarMensaje("[INFO] Todavia no hay jugadores en el ranking.\n");
+                return;
+            }
+
+            String[] filas = rankingRaw.trim().split("\n");
+            int limite = Math.min(filas.length, 5);
+
+            for (int i = 0; i < limite; i++) {
+                String[] partes = filas[i].split(";");
+                String pos     = partes[0]; // posicion
+                String nombre  = partes[1]; // nickname
+                String ganadas = partes[2]; // partidas ganadas
+                String dinero  = "$" + partes[3]; // plata total
+
+                mostrarMensaje(String.format("  %-15s  %4s victorias  %12s  \n", nombre, ganadas, dinero));
+            }
+            mostrarMensaje(linea(55) + "\n");
+
+        } catch (RemoteException e) {
+            mostrarMensaje("Error al obtener el ranking.\n\n");
+        }
+    }
+
+    /**
+     * comando "RECARGAR <monto>"
+     */
+    private void procesarRecarga(String entrada) throws RemoteException {
+        // Parsear comando: "RECARGAR 500" o "recargar 500"
+        String[] partes = entrada.trim().split("\\s+");
+
+        if (partes.length != 2) {
+            mostrarMensaje("Sintaxis: RECARGAR <monto>\n");
+            mostrarMensaje("Ejemplo: RECARGAR 500\n\n");
+            return;
+        }
+
+        try {
+            float monto = Float.parseFloat(partes[1]);
+
+            if (monto <= 0) {
+                mostrarMensaje("\nEl monto debe ser mayor a 0.\n\n");
+                return;
+            }
+            float saldoAntes = controlador.getSaldoJugadorActual();
+
+            // Recargar el saldo al jugador
+            boolean exito = controlador.recargarSaldo(monto);
+
+            if (exito) {
+                float saldoDespues = controlador.getSaldoJugadorActual();
+
+                mostrarMensaje("\n");
+                mostrarMensaje("=======================================\n");
+                mostrarMensaje("RECARGA EXITOSA\n");
+                mostrarMensaje("=======================================\n");
+                mostrarMensaje("Monto recargado: $" + String.format("%.2f", monto) + "\n");
+                mostrarMensaje("Saldo anterior: $" + String.format("%.2f", saldoAntes) + "\n");
+                mostrarMensaje("Saldo actual: $" + String.format("%.2f", saldoDespues) + "\n");
+                mostrarMensaje("=======================================\n\n");
+            } else {
+                mostrarMensaje("\nError al recargar saldo.\n\n");
+            }
+
+        } catch (NumberFormatException e){
+        }
+    }
+
+    private void procesarVoto(String voto) {
+        voto = voto.trim().toLowerCase();
+
+        if (voto.equals("si") || voto.equals("sí") || voto.equals("s")) {
+            mostrarMensaje("\nVotaste SÍ - Vas a jugar otra partida!\n");
+            try {
+                controlador.votarSi();
+            } catch (RemoteException e) {
+                throw new RuntimeException(e);
+            }
+
+            enVotacion = false;
+            votacionMostrada = true;
+            esperandoDecision = false;
+
+            // escribir("Esperando a los demás jugadores...\n");
+
+        } else if (voto.equals("no") || voto.equals("n")) {
+            mostrarMensaje("\nVotaste NO - Vas a salir de la partida\n");
+            try {
+                controlador.votarNo();
+            } catch (RemoteException e) {
+                throw new RuntimeException(e);
+            }
+            enVotacion = false;
+            votacionMostrada = true;
+            esperandoDecision = false;
+            mostrarMensaje("Saliste de la partida.\n");
+
+        } else {
+            mostrarMensaje("Voto no válido. Escribi SI o NO.\n");
+            mostrarMensaje("Voto: \n");
+        }
+
+
+    }
+
+    // ============================================================
+    // CONFIGURACIÓN INICIAL
+    // ============================================================
+
+    private void procesarConfiguracionInicial(String entrada) throws RemoteException {
+        if (esperandoNickname) {
+            procesarNickname(entrada);
+        } else if (esperandoSaldo) {
+            procesarSaldo(entrada);
+        }
+    }
+
+    private void procesarNickname(String entrada) {
+        if (entrada.matches("\\d+")) {
+            mostrarMensaje("El nickname no puede ser solo números.\n");
+            mostrarMensaje("Nickname: ");
+            return;
+        }
+
+        // controlador.setNickname(entrada);
+        this.nicknameTemporal = entrada;
+        mostrarMensaje("Nickname: " + entrada + "\n\n");
+
+        esperandoNickname = false;
+        esperandoSaldo = true;
+        mostrarMensaje("Saldo inicial: ");
+    }
+
+    private void procesarSaldo(String entrada) {
+        try {
+            float saldo = Float.parseFloat(entrada);
+
+            if (saldo <= 0) {
+                mostrarMensaje("El saldo debe ser mayor a 0.\n");
+                mostrarMensaje("Saldo inicial: ");
+                return;
+            }
+
+            this.saldoTemporal = saldo;
+            mostrarMensaje("Saldo: $" + String.format("%.0f", saldo) + "\n\n");
+            controlador.configurarJugadores(nicknameTemporal, saldoTemporal);
+
+            esperandoSaldo = false;
+            misDatosConfigurados = true;
+
+            mostrarMensaje("========================================\n");
+            mostrarMensaje("  LISTO PARA JUGAR\n");
+            mostrarMensaje("========================================\n\n");
+            mostrarMensaje("Escribi COMENZAR (c) para iniciar\n");
+            mostrarMensaje("Comandos: COMENZAR (c) | SALA | RANKING | AYUDA\n\n");
+
+        } catch (NumberFormatException e) {
+            mostrarMensaje("Ingresa un numero válido. Las letras no son validas.\n");
+            mostrarMensaje("Saldo inicial: ");
+        } catch (RemoteException e) {
+            mostrarMensaje("Error al configurar jugador: " + e.getMessage() + "\n");
+            mostrarMensaje("Saldo inicial: ");
+        }
+    }
+
+    private void procesarComandoComenzar(String comando) throws RemoteException {
+        comando = comando.toLowerCase();
+
+        switch (comando) {
+            case "comenzar":
+            case "start":
+            case "c":
+                intentarComenzarPartida();
+                break;
+
+            case "sala":
+            case "jugadores":
+                mostrarJugadoresConectados();
+                break;
+
+            case "ayuda":
+            case "help":
+                mostrarMensaje("\nComandos:\n");
+                mostrarMensaje("COMENZAR - Iniciar partida\n");
+                mostrarMensaje("SAL - Ver jugadores\n");
+                mostrarMensaje("RANKING - Ver top 5 jugadores\n");
+                mostrarMensaje("AYUDA - Ver comandos\n\n");
+                break;
+
+            case "ranking":
+                mostrarRanking();
+                break;
+
+            default:
+                mostrarMensaje("Comando desconocido.\n");
+                mostrarMensaje("Pone AYUDA para ver comandos.\n\n");
+                break;
+        }
+    }
+
+    private void intentarComenzarPartida() throws RemoteException {
+        mostrarMensaje("Intentando comenzar...\n");
+
+        if (!controlador.intentarComenzarPartida()) {
+            int listos = controlador.getCantidadJugadoresListos();
+            int total = controlador.getCantidadJugadoresConectados();
+
+            mostrarMensaje("No se puede comenzar aún.\n");
+            mostrarMensaje("Jugadores listos: " + listos + "/" + total + "\n\n");
+        }
+    }
+
+    private void mostrarJugadoresConectados() throws RemoteException {
+        List<String> jugadores = controlador.getJugadoresConectados();
+        mostrarSalaEspera(jugadores, 0);
+    }
+
+
+    private void procesarApuesta(String entrada) throws RemoteException {
+        if (!entrada.matches("\\d*\\.?\\d+")) {
+            mostrarMensaje("Ingresa un número válido.\n");
+            return;
+        }
+
+        float monto = Float.parseFloat(entrada);
+
+        if (monto <= 0) {
+            mostrarMensaje("El monto debe ser mayor a 0.\n");
+            return;
+        }
+
+        float saldoActual = controlador.getSaldoJugadorActual();
+        if (monto > saldoActual) {
+            mostrarMensaje("Saldo insuficiente.\n");
+            mostrarMensaje("Tu saldo: $" + String.format("%.0f", saldoActual) + "\n");
+            return;
+        }
+
+        boolean apuestaExitosa = controlador.cargarApuestaJugador(String.valueOf(monto));
+
+        if (apuestaExitosa) {
+            mostrarMensaje("Apostaste: $" + String.format("%.0f", monto) + "\n\n");
+
+            // no es mi turno para apostar
+            esmiTurno = false;
+            faseApuestas = false;
+
+            // verifico si hay mas jugadores
+            try {
+                int totalJugadores = controlador.getCantidadJugadoresConectados();
+                if (totalJugadores > 1) {
+                    mostrarMensaje("Esperando a los demás...\n\n");
+                } else {
+                    mostrarMensaje("Preparando tu mano...\n\n");
+                }
+            } catch (Exception e) {
+                mostrarMensaje("Esperando...\n\n");
+            }
+        } else {
+            mostrarMensaje("Error al apostar. Intenta de nuevo.\n");
+        }
+    }
+
+    // ============================================================
+    // DECISIONES DE JUEGO
+    // ============================================================
+
+    private void procesarDecisionJugador(String decision) throws RemoteException {
+        switch (decision) {
+            case "pedir":
+            case "p":
+                accionPedir();
+                break;
+
+            case "plantar":
+            case "pl":
+                accionPlantar();
+                break;
+
+            case "doblar":
+            case "d":
+                accionDoblar();
+                break;
+
+            case "dividir":
+            case "div":
+                accionDividir();
+                break;
+
+            case "seguro":
+            case "s":
+                accionSeguro();
+                break;
+
+            case "ayuda":
+            case "?":
+                mostrarAyudaJuego();
+                break;
+
+            case "ranking":
+                mostrarRanking();
+                break;
+
+            default:
+                mostrarMensaje("Comando no reconocido.\n");
+                mostrarMensaje("Escribi AYUDA para ver comandos.\n\n");
+                break;
+        }
+    }
+
+
+    private void accionPedir() throws RemoteException {
+        mostrarMensaje("[!] Pediste una carta!\n");
+        controlador.pedirCarta();
+        boolean dividio = (controlador.getJugadorDividio() || controlador.getManosJugador().size() > 1);
+
+        if (dividio) {
+            mostrarManosDivididasJugadorVista();
+
+            int manoActual = controlador.getManoActualIndex();
+            List<Mano> manos = controlador.getManosJugador();
+            if (manos.size() <= manoActual) return;
+
+            int puntaje = manos.get(manoActual).getPuntaje();
+
+            if (puntaje > 21) {
+                mostrarMensaje("\nTe pasaste de 21 en la mano " + (manoActual + 1) + "!\n");
+                mostrarMensaje("Perdiste esta mano :(\n\n");
+
+            } else if (puntaje == 21) {
+                mostrarMensaje("\nLlegaste a 21 en la mano " + (manoActual + 1) + "!\n");
+                mostrarMensaje("Te plantas automáticamente.\n\n");
+            } else {
+                mostrarMensaje("\nPIDIR | PLANTAR | DOBLAR | AYUDA\n");
+                mostrarMensaje("Decisión: ");
+            }
+
+        } else {
+            // muestra mano sin dividir
+            mostrarManoActualizada();
+            int puntaje = controlador.getPuntajeMano();
+
+            if (puntaje > 21) {
+                mostrarMensaje("\nTe pasaste de 21!\n");
+                mostrarMensaje("Perdiste esta mano :(\n\n");
+                esmiTurno = false;
+                esperandoDecision = false;
+                controlador.cambiarTurnoJugador();
+            } else if (puntaje == 21) {
+                mostrarMensaje("\nLlegaste a 21 puntos!\n");
+                mostrarMensaje("Te plantas automáticamente.\n\n");
+                esmiTurno = false;
+                esperandoDecision = false;
+                controlador.cambiarTurnoJugador();
+            } else {
+                mostrarMensaje("\nIngresa una palabra para la decision!\n");
+                mostrarMensaje("PEDIR | PLANTAR | DOBLAR | DIVIDIR | AYUDA\n");
+                mostrarMensaje("Decisión: ");
+            }
+        }
+    }
+
+    private void accionPlantar() throws RemoteException {
+        int puntaje = controlador.getPuntajeMano();
+
+        mostrarMensaje("[!] Te plantaste con " + puntaje + " puntos!\n");
+
+        // verifico si hay mano 2 pendiente
+        List<Mano> manos = controlador.getManosJugador();
+        int manoActualIndex = controlador.getManoActualIndex();
+
+        if (manos.size() > 1 && manoActualIndex == 0) {
+            // HAY mano 2 pendiente - NO resetear estados
+            mostrarMensaje("Mano 1 plantada. Esperando mano 2...\n");
+            // NO cambiar esmiTurno, faseJuego, esperandoDecision
+        } else {
+            // NO hay más manos - resetear estados
+            mostrarMensaje("Esperando a los demas jugadores...\n");
+            esmiTurno = false;
+            esperandoDecision = false;
+            faseJuego = false;
+        }
+
+        controlador.plantarse();
+    }
+
+    private void accionDoblar() throws RemoteException {
+        if (controlador.getManosJugador().size() == 2){
+            if (controlador.getManosJugador().get(0).getMano().size() != 2 && controlador.manoAUsar() == 0){
+                mostrarMensaje("Solo podes doblar con 2 cartas en la mano 1!\n");
+                return;
+            }
+            if (controlador.getManosJugador().get(1).getMano().size() != 2 && controlador.manoAUsar() == 1){
+                mostrarMensaje("Solo podes doblar con 2 cartas en la mano 2!\n");
+                return;
+            }
+        }
+        else if (controlador.getCartasMano().size() != 2) {
+            mostrarMensaje("Solo puedes doblar con 2 cartas.\n");
+            return;
+        }
+
+        // apuesta de la mano actual
+        float apuesta;
+
+        if (controlador.jugadorDividio() && controlador.manoAUsar() == 1) {
+            // Si estamos en mano 2, usar apuesta de mano 2
+            apuesta = controlador.getApuestaJugadorMano2();
+        } else {
+            // Si estamos en mano 1 o no hay división, usar apuesta normal
+            apuesta = controlador.getApuestaJugador();
+        }
+
+        float saldo = controlador.getSaldoJugadorActual();
+
+        if (saldo < apuesta) {
+            mostrarMensaje("Saldo insuficiente para doblar.\n");
+            mostrarMensaje("Necesitas: $" + String.format("%.0f", apuesta) + " (mano " + (controlador.manoAUsar() + 1) + ")\n");
+            return;
+        }
+
+        mostrarMensaje("[LOG] CONTROLADOR.JUGADORDOBLOMANO()...");
+        controlador.jugadorDobloMano();
+
+        // le doy tiempo al rmi para que sincronice los datos
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException e) {
+
+        }
+
+        float apuestaDespues = controlador.getApuestaJugador();
+        float saldoDespues = controlador.getSaldoJugadorActual();
+
+        mostrarMensaje("[DESPUÉS] Apuesta: $" + String.format("%.0f", apuestaDespues) + " | Saldo: $" + String.format("%.0f", saldoDespues) + "\n");
+        mostrarMensaje("\nDoblaste tu apuesta! Apuesta total: $" + String.format("%.0f", apuestaDespues) + "\n");
+        mostrarMensaje("Recibis una carta y te plantas automáticamente.\n");
+
+        controlador.recibirCartaJugador();
+        mostrarManoActualizada();
+        controlador.plantarse();
+
+        // solo resetear estados si NO hay división pendiente
+        if (!controlador.jugadorDividio() || controlador.getManosJugador().size() <= 1) {
+            esmiTurno = false;
+            esperandoDecision = false;
+        }
+    }
+
+    private void accionDividir() throws RemoteException {
+        if (controlador.getCartasMano().size() != 2) {
+            mostrarMensaje("Solo podes dividir con 2 cartas.\n");
+            return;
+        }
+
+        List<Carta> cartas = controlador.getCartasMano();
+        if (!cartas.get(0).getValor().equals(cartas.get(1).getValor())) {
+            mostrarMensaje("Solo podes dividir cartas iguales.\n");
+            return;
+        }
+
+        float apuesta = controlador.getApuestaJugador();
+        float saldo = controlador.getSaldoJugadorActual();
+
+        if (saldo < apuesta) {
+            mostrarMensaje("Saldo insuficiente para dividir!\n");
+            return;
+        }
+
+        controlador.dividirMano();
+        controlador.setJugadorDividio(true);
+        mostrarMensaje("\nDividiste tu mano.\n");
+        mostrarMensaje("Jugando primera mano...\n");
+
+        mostrarManosDivididasJugadorVista();
+    }
+
+    private void accionSeguro() throws RemoteException {
+        if (!controlador.getCrupierTieneAsPrimera()) {
+            mostrarMensaje("El seguro solo está disponible si el crupier muestra un AS.\n");
+            return;
+        }
+
+        float costoSeguro = controlador.getApuestaJugador() / 2;
+        float saldo = controlador.getSaldoJugadorActual();
+
+        if (saldo < costoSeguro) {
+            mostrarMensaje("Saldo insuficiente para el seguro.\n");
+            return;
+        }
+
+        // controlador.setPagoSeguroJugador(true);
+        controlador.retirarSaldoJugador(controlador.getApuestaJugador()/2);
+        mostrarMensaje("\nPagaste el seguro: $" + String.format("%.0f", costoSeguro) + "\n");
+        mostrarMensaje("Si el crupier tiene Blackjack, recuperas tu apuesta.\n\n");
+
+        notificarTurnoJugador();
+    }
+
+    private void mostrarAyudaJuego() {
+        mostrarMensaje("\nComandos disponibles:\n");
+        mostrarMensaje("COMENZAR (C) - Comenzar Partida\n");
+        mostrarMensaje("PEDIR (P) - Pedir carta\n");
+        mostrarMensaje("PLANTAR (PL) - Plantarse\n");
+        mostrarMensaje("DOBLAR (D) - Doblar apuesta\n");
+        mostrarMensaje("DIVIDIR (DIV) - Dividir mano\n");
+        mostrarMensaje("SEGURO (S) - Pagar seguro\n");
+        mostrarMensaje("AYUDA - Ver comandos\n\n");
+
+        mostrarMensaje("RECARGAR <monto> - Recargar saldo\n");
+        mostrarMensaje("SALDO - Ver el saldo actual\n");
+    }
+
+    // mostrar cartas
+
+    private void mostrarManoActualizada() throws RemoteException {
+        // ESTO TRAE SOLO LA PRIMERA MANO. NO LA SEGUNDA SI ES QUE SE DIVIDE
+        List<Carta> cartas = controlador.getCartasMano();
+        int puntaje = controlador.getPuntajeMano();
+
+        mostrarMensaje("\nTus cartas:\n");
+        for (Carta carta : cartas) {
+            mostrarMensaje("  • " + carta.getValor() + " de " + carta.getPalo() + "\n");
+        }
+
+        mostrarMensaje("\nPuntaje: " + puntaje);
+
+        if (controlador.jugadorActualTieneAs() && puntaje <= 21) {
+            mostrarMensaje(" (As suave)");
+        }
+
+        mostrarMensaje("\n");
+    }
+
+    @Override
+    public void mostrarMensaje(String texto) {
+        SwingUtilities.invokeLater(() -> {
+            txtSalida.append(texto);
+            txtSalida.setCaretPosition(txtSalida.getDocument().getLength());
         });
     }
-    private boolean chequearSiTerminoPartida(){
-        return controlador.getIndiceJugadorActual() == controlador.getCantidadJugadoresTotal();
+
+    private String linea(int longitud) {
+        return "=".repeat(longitud);
     }
 
-    private void cargarJugador(){
-        controlador.configurarJugadores(controlador.getNickname(), (float) controlador.getSaldo());
-        esperandoNickname = true;
-        esperandoSaldo = false;
-        jugadoresRestantes--;
-        cantJugadoresAgregados++;
-        cambiarTurno();
-        if (jugadoresRestantes > 0){
-            procesarCargaNickname();
-        }
-    }
-    private void procesarCargaNickname() {
-        if (jugadoresRestantes == 0){
-            return;
-        }
-        mostrarMensaje("Ingrese el nombre del jugador " + (cantJugadoresAgregados+1) + ": ");
-        // esperandoNickname = false;
-        // esperandoSaldo = true;
 
-    }
-    private void procesarCargaSaldo() {
-        if (jugadoresRestantes == 0){
-            mostrarMensaje("Todos los jugadores fueron agregados con éxito.");
-            return;
-        }
-        mostrarMensaje("Ingrese el saldo del jugador " + (cantJugadoresAgregados+1) + ": ");
-    }
-
-    private void cambiarTurno(){
-        controlador.cambiarTurnoJugador();
-    }
-
-    private void reiniciarPartida() {
-        estadoJugador = -1;
-        jugadoresRestantes = 0;
-        cantJugadoresAgregados = 0;
-        estadoCantidadJugadores = 1;
-        esperandoNickname = true;
-        flagArrancoPartida = false;
-        yaRepartio = false;
-        controlador.setIndiceJugador(0);
-        controlador.setCantidadJugadoresTotales(0);
-        controlador.clearJugadores();
-        controlador.clearManoCrupier();
-        controlador.resetBaraja();
-        seCargaronJugadores = false;
-        inicioMano2 = false;
-    }
-
+    @Override
     public void setControlador(Controlador controlador) {
         this.controlador = controlador;
     }
 
-    private void procesarGanadores(){
-        controlador.evaluandoGanadores();
-        mostrarMensaje("=============================================");
-        mostrarMensaje("Presione Enter para comenzar una nueva partida");
-        mostrarMensaje("=============================================");
+    @Override
+    public void iniciarJuego() {
+        SwingUtilities.invokeLater(() -> {
+            frame.setVisible(true);
+
+            mostrarMensaje(linea(40) + "\n");
+            mostrarMensaje("BIENVENIDO AL BLACKJACK!\n");
+            mostrarMensaje(linea(40) + "\n\n");
+            mostrarMensaje("Nickname: ");
+        });
     }
 
-    private void procesarCargaApuestas(String monto) {
-        /* verifico si el string monto coincide con:
-        \\d* -> cero o mas digitos
-        \\.? -> separador decimal (.) - (?) cero o una ocurrencia de comas
-        \\d+ -> uno o mas digitos, asegura que haya al menos un numero despues del punto decimal
-         */
-        if (!monto.matches("\\d*\\.?\\d+") && controlador.getNombreJugador() != null){
-            this.mostrarMensaje(controlador.getNombreJugador() + ": ingrese el monto a apostar (Saldo: $" + controlador.getSaldoJugadorActual() + "): ");
-            return;
-        }
-        if (!Objects.equals(monto, "")){
-            controlador.setMontoApostado(Float.parseFloat(monto));
-            if (!controlador.cargarApuestaJugador(monto)) {
-                mostrarMensaje("Error al apostar. Monto excedido.");
-                procesarCargaApuestas("");
-                return;
+    @Override
+    public void mostrarSalaEspera(List<String> jugadores, int maximo) {
+        SwingUtilities.invokeLater(() -> {
+            if (!juegoComenzado) {
+                mostrarMensaje("\n" + linea(40) + "\n");
+                mostrarMensaje("SALA DE ESPERA\n");
+                mostrarMensaje(linea(40) + "\n");
+                mostrarMensaje("Jugadores: " + jugadores.size() + "\n\n");
+
+                for (int i = 0; i < jugadores.size(); i++) {
+                    mostrarMensaje("  " + (i + 1) + ". " + jugadores.get(i) + "\n");
+                }
+
+                mostrarMensaje(linea(40) + "\n\n");
             }
-            jugadoresRestantes--;
-        }
-        if (jugadoresRestantes > 0){
-            txtEntrada.setText("");
-            cambiarTurno();
-            procesarCargaApuestas("");
-        }
+        });
     }
-    public void cicloPartida() {
-        if (controlador.getIndiceJugadorActual() == controlador.getCantidadJugadoresTotal()){
-            // chequear condicion
+
+    @Override
+    public void comenzarPartida() {
+        SwingUtilities.invokeLater(() -> {
             try {
-                controlador.turnoCrupier();
+                controlador.resetBaraja();
             } catch (RemoteException e) {
                 throw new RuntimeException(e);
             }
-            return;
-        }
-        while (controlador.getIndiceJugadorActual() != controlador.getCantidadJugadoresTotal() && !yaRepartio){
-            controlador.repartirCartasIniciales(controlador.obtenerJugadorActual());
-            controlador.cambiarTurnoJugador();
-        }
-        yaRepartio = true;
-        if (controlador.getIndiceJugadorActual() == controlador.getCantidadJugadoresTotal()){
-            controlador.cambiarTurnoJugador();
-            // Coloco el indice en 0 nuevamente para que comience la partida
-        }
-        flagArrancoPartida = true;
-        // mostrarMensaje("DEBUG -> IndiceJugador = " + controlador.getIndiceJugadorActual());
-        mostrarMensaje("Es el turno de: " + controlador.getNombreJugador() + "\n");
-        mostrarMensaje("El saldo del jugador es de: " + controlador.getSaldoJugadorActual());
-        if (!controlador.crupierTieneCarta()){
-            controlador.crupierPideCarta();
-            controlador.crupierPideCarta();
-        }
-        mostrarMensaje("Cartas restantes: " + controlador.cartasRestantes());
-        mostrarMensaje("El crupier tiene: " + controlador.crupierMuestraPrimerCarta());
-        vaDecisionJugador = true;
-        flag = true; // Flag para intercambiar entre decision y check jugador
+            juegoComenzado = true;
+            enSalaEspera = false;
+
+            // reseteo las flags para que la votacion aparezca cada vez que se termina la partida
+            // cada vez que se inicia la votación, este metodo se llama a través del controlador usando el evento
+            // NUEVA_PARTIDA_INICIADA
+            votacionMostrada = false;
+            enVotacion = false;
+
+            mostrarMensaje("\n" + linea(40) + "\n");
+            mostrarMensaje("PARTIDA INICIADA!\n");
+            mostrarMensaje(linea(40) + "\n\n");
+            mostrarMensaje("Ingrese el monto de su apuesta...\n\n");
+        });
     }
 
-    private void mostrarConsola(){
-        frame.setVisible(true);
-    }
+    @Override
+    public void notificarTurnoApuesta() {
+        SwingUtilities.invokeLater(() -> {
+            // IMPORTANTE: Solo cambiar estado si NO estoy en fase de juego
+            if (!faseJuego) {
+                esmiTurno = true;
+                faseApuestas = true;
 
-    private void mostrarEstadosJugador(int estadoJugador){
-        if (estadoJugador == 1){
-            // mostrarManoJugadorVista();
-            mostrarMensaje("Felicitaciones " + controlador.getNombreJugador() + " conseguiste BJ!");
-            vaDecisionJugador = false;
-            cambiarTurno(); // ya con BJ no se puede seguir pidiendo ni plantarse.
-            if (controlador.getIndiceJugadorActual() != controlador.getCantidadJugadoresTotal()){
-                // MUESTRO LA MANO DEL SIGUIENTE JUGADOR
-                siguienteJugador();
-            }
-        }else if (estadoJugador == 2){
-            mostrarMensaje("Usted pagó el seguro por un valor de ($" + controlador.getApuestaJugador()/2 + " pesos).");
-            mostrarMenuOpciones();
-            vaDecisionJugador = true;
-        }else if (estadoJugador == 3){
-            mostrarMenuOpcionesPuedeDividir();
-            vaDecisionJugador = true;
-        }else if (estadoJugador == 4){
-            mostrarMensaje("Se pasó de 21. Perdió la ronda.");
-            cambiarTurno();
-        }else if (estadoJugador == 5){
-            mostrarMenuOpcionesYaPidio();
-            vaDecisionJugador = true;
-        }else if (estadoJugador == 6){
-            if (!controlador.getJugadorDividio()){
-                cambiarTurno();
-                vaDecisionJugador = false;
-            }else{
-                if (!inicioMano2){
-                    // no inicio mano 2
-                    cargarManoDividida();
-                    // sigue con la siguiente mano
-                }else{
-                    cambiarTurno();
-                    // si esta la mano iniciada y se planta se cambia el turno
+                mostrarMensaje(linea(40) + "\n");
+                mostrarMensaje("TU TURNO - APUESTA\n");
+                mostrarMensaje(linea(40) + "\n");
+                try {
+                    mostrarMensaje("Saldo: $" + String.format("%.0f", controlador.getSaldoJugadorActual()) + "\n\n");
+                    mostrarMensaje("Monto a apostar: ");
+                } catch (RemoteException e) {
+                    throw new RuntimeException(e);
                 }
             }
-        }
-        else if (estadoJugador == 0){
-            mostrarMenuOpciones();
-            vaDecisionJugador = true;
-        }
-        this.estadoJugador = -1; // Lo seteo en -1 para que vuelva a ser check
+        });
     }
 
-    /**
-     * Metodo que recibe la cantidad de jugadores que van a jugar inicialmente
-     * @param input -> entrada por teclado del nickname del jugador
-     */
-    private void solicitarCantidadJugadores(String input) {
-        try {
-            int cantidad = Integer.parseInt(input);
-            if (cantidad >= 1 && cantidad <= 7){
-                jugadoresRestantes = cantidad;
-                mostrarMensaje("Cantidad de jugadores: " + jugadoresRestantes + "\n");
-                estadoCantidadJugadores = 0;
-                // procesarNombresJugadores();
-            }else{
-                this.mostrarMensaje("[!] Debes ingresar una cantidad entre 1 y 7\n");
-                this.mostrarMensaje("Ingrese la cantidad de jugadores (1 - 7): ");
-            }
-        } catch (NumberFormatException e) {
-            this.mostrarMensaje("[!] Debes ingresar una cantidad entre 1 y 7\n");
-            this.mostrarMensaje("Ingrese la cantidad de jugadores (1 - 7): ");
-        }
-    }
-    /**
-     *
-     */
-    public void iniciarJuego() {
-        mostrarConsola();
-        this.mostrarMensaje("Bienvenido al Blackjack!\n");
-        this.mostrarMensaje("Por favor, ingrese la cantidad de jugadores (1 - 7): ");
-    }
-    /**
-     * @param mensaje -> le pasa el mensaje para que se muestre en pantalla de la consola.
-     */
-    public void mostrarMensaje(String mensaje) {
-        txtSalida.append(mensaje + "\n");
-        txtSalida.update(txtSalida.getGraphics());
-    }
-    public void mostrarMensaje2(String mensaje){
-        txtSalida.append(mensaje);
-        txtSalida.update(txtSalida.getGraphics());
-    }
-
-    public void mostrarCartasJugador(){
-        List<Carta> cartas = controlador.getCartasMano();
-        mostrarMensaje("El jugador " + controlador.getNombreJugador() + " tiene las siguientes cartas:");
-        for (Carta carta : cartas){
-            this.mostrarMensaje(carta.getValor() + " de " + carta.getPalo());
-        }
-    }
     @Override
-    public void mostrarPuntuacionParcial(){
-        int sumatoriaPuntaje = 0;
-        int aux = 0;
-        int ases = 0;
-        for (Carta carta : controlador.getCartasMano()){
-            sumatoriaPuntaje += carta.getValorNumerico();
-            if (carta.getValorNumerico() == 11) ases++;
-        }
-        while (sumatoriaPuntaje > 21 && ases > 0){
-            aux = sumatoriaPuntaje;
-            sumatoriaPuntaje -= 10;
-            ases--;
-            if (ases == 1){
-                aux = sumatoriaPuntaje;
-                sumatoriaPuntaje -= 10;
-                ases--;
+    public void notificarTurnoJugador() {
+        SwingUtilities.invokeLater(() -> {
+            esmiTurno = true;
+            faseApuestas = false;
+            faseJuego = true;
+            esperandoDecision = true;
+            mostrarMensaje(linea(40) + "\n");
+            mostrarMensaje("ES TU TURNO - DECIDIS QUE HACER CON TU MANO\n");
+            mostrarMensaje(linea(40) + "\n");
+            // Carta del crupier
+            String cartaCrupier = null;
+            try {
+                cartaCrupier = controlador.getCrupier().mostrarPrimeraCarta();
+            } catch (RemoteException e) {
             }
-        }
-        if ((controlador.jugadorActualTieneAs() && sumatoriaPuntaje < 21) && aux < 21){
-            mostrarMensaje("El puntaje actual es de: " + (controlador.getPuntajeMano()-10) + "/" + controlador.getPuntajeMano());
-        }else mostrarMensaje("El puntaje del jugador es de: " + controlador.getPuntajeMano());
+            mostrarMensaje("Crupier: " + cartaCrupier + " + [NO REVELADO]\n\n");
+            // Tus cartas
+            List<Carta> cartas = null;
+            try {
+                cartas = controlador.getCartasMano();
+            } catch (RemoteException e) {
+            }
+            mostrarMensaje("Tus cartas:\n");
+            for (Carta carta : cartas) {
+                mostrarMensaje("  • " + carta.getValor() + " de " + carta.getPalo() + "\n");
+            }
+            int puntaje = 0;
+            try {
+                puntaje = controlador.getPuntajeMano();
+            } catch (RemoteException e) {
+            }
+            mostrarMensaje("\nPuntaje: " + puntaje);
+            try {
+                if (controlador.jugadorActualTieneAs() && puntaje <= 21) {
+                    mostrarMensaje(" (As suave)");
+                }
+            } catch (RemoteException e) {
+            }
+            mostrarMensaje("\n\n");
+
+            // verifico si hay blackjack
+            try {
+                if (controlador.getJugadorTieneBlackjack()) {
+                    mostrarMensaje("BLACKJACK!!\n\n");
+                    esmiTurno = false;
+                    esperandoDecision = false;
+                    controlador.cambiarTurnoJugador(); // si se consigue BJ, avanza el turno automaticamente.
+                    return;
+                }
+            } catch (RemoteException e) {
+                throw new RuntimeException(e);
+            }
+            // Verificar seguro
+            boolean puedeSeguro = false;
+            try {
+                puedeSeguro = controlador.getCrupierTieneAsPrimera();
+            } catch (RemoteException e) {
+                puedeSeguro = false;
+            }
+            if (puedeSeguro) {
+                float costoSeguro = 0;
+                try {
+                    costoSeguro = controlador.getApuestaJugador() / 2;
+                } catch (RemoteException e) {
+                    throw new RuntimeException(e);
+                }
+                mostrarMensaje("El crupier muestra un As.\n");
+                mostrarMensaje("Podes pagar el SEGURO con un valor de: " + costoSeguro + ".\n\n");
+                mostrarMensaje("PEDIR | PLANTAR | DOBLAR | DIVIDIR | SEGURO | AYUDA\n");
+            }
+            else mostrarMensaje("PEDIR | PLANTAR | DOBLAR | DIVIDIR | AYUDA\n");
+            mostrarMensaje("Decisión: ");
+        });
     }
 
-    /**
-     * Metodo donde muestra las manos del jugador cuando divide
-     * CONSULTAR SI DEBO HACER LA MISMA METODOLOGIA QUE CON UNA MANO INDIVIDUAL (COMUNICACION ENTRE CONTROLADOR -> MODELO)
-     */
-    public void mostrarManosDivididasJugadorVista() {
-        int sumatoriaPuntaje1 = 0;
-        int sumatoriaPuntaje2 = 0;
-        int ases1 = 0;
-        int ases2 = 0;
-        int aux1 = 0;
-        int aux2 = 0;
-        mostrarMensaje("===================================================");
-        mostrarMensaje(controlador.getNombreJugador() + " tiene las siguientes cartas en ambas manos: ");
-        Carta cartasMano1;
-        Carta cartaMano2;
-
-        int cantidadCartas = Math.max(controlador.getCantidadCartasManoIndice(0), controlador.getCantidadCartasManoIndice(1));
-        mostrarMensaje("-= MANO 1=-\t\t -= MANO 2 =-\n");
-        for (int i = 0; i < cantidadCartas; i++){
-            if (i < controlador.getCantidadCartasManoIndice(0)){
-                cartasMano1 = controlador.getCartasManoIndice(0, i);
-                mostrarMensaje2(cartasMano1.getValor() + " de " + cartasMano1.getPalo() + "       ");
-                sumatoriaPuntaje1 += cartasMano1.getValorNumerico();
-                if (cartasMano1.getValorNumerico() == 11) ases1++;
-            }else mostrarMensaje2("\t");
-            if (i < controlador.getCantidadCartasManoIndice(1)){
-                cartaMano2 = controlador.getCartasManoIndice(1, i);
-                mostrarMensaje2("\t");
-                mostrarMensaje2(cartaMano2.getValor() + " de " + cartaMano2.getPalo() + "\n");
-                sumatoriaPuntaje2 += cartaMano2.getValorNumerico();
-                if (cartaMano2.getValorNumerico() == 11) ases2++;
-            }else mostrarMensaje2("\t");
-        }
-        while (sumatoriaPuntaje1 > 21 && ases1 > 0){
-            aux1 = sumatoriaPuntaje1;
-            sumatoriaPuntaje1 -= 10;
-            ases1--;
-            if (ases1 == 1){
-                aux1 = sumatoriaPuntaje1;
-                sumatoriaPuntaje1 -= 10;
-                ases1--;
-            }
-        }
-        while (sumatoriaPuntaje2 > 21 && ases2 > 0){
-            aux2 = sumatoriaPuntaje2;
-            sumatoriaPuntaje2 -= 10;
-            ases2--;
-            if (ases2 == 1){
-                aux2 = sumatoriaPuntaje2;
-                sumatoriaPuntaje2 -= 10;
-                ases2--;
-            }
-        }
-        mostrarMensaje("");
-        if ((controlador.getJugadorTieneAsManoIndice(0) && sumatoriaPuntaje1 < 21) && aux1 < 21){
-            mostrarMensaje("El puntaje actual de la mano 1 es: " + (controlador.getPuntajeManosIndices(0)-10) + "/" + controlador.getPuntajeManosIndices(0));
-        }else mostrarMensaje("El puntaje actual de la mano 1 es: " + controlador.getPuntajeManosIndices(0));
-        if ((controlador.getJugadorTieneAsManoIndice(1) && sumatoriaPuntaje2 < 21) && aux2 < 21){
-            mostrarMensaje("El puntaje actual de la mano 2 es: " + (controlador.getPuntajeManosIndices(1)-10) + "/" + controlador.getPuntajeManosIndices(0));
-        }else mostrarMensaje("El puntaje actual de la mano 2 es: " + controlador.getPuntajeManosIndices(1));
-        mostrarMensaje("===================================================");
-    }
     @Override
-    public void mostrarPuntuacionParcialCrupier(){
-        int sumatoriaPuntajeCrupier = 0;
-        int auxCrupier = 0;
-        int asesCrupier = 0;
-        for (Carta c : controlador.getManoCrupier()){
-            sumatoriaPuntajeCrupier += c.getValorNumerico();
-            if (c.getValorNumerico() == 11) asesCrupier++;
-        }
-        while (sumatoriaPuntajeCrupier > 21 && asesCrupier > 0){
-            auxCrupier = sumatoriaPuntajeCrupier;
-            sumatoriaPuntajeCrupier -= 10;
-            asesCrupier--;
-            if (asesCrupier == 1){
-                auxCrupier = sumatoriaPuntajeCrupier;
-                sumatoriaPuntajeCrupier -= 10;
-                asesCrupier--;
-            }
-        }
-        if (sumatoriaPuntajeCrupier >= 17) mostrarCartasCrupier();
-        if ((controlador.getCrupierTieneAsPrimera() && sumatoriaPuntajeCrupier < 21) && auxCrupier < 21){
-            mostrarMensaje("El puntaje actual del crupier es de: " + (controlador.getPuntajeCrupier()-10) + "/" + controlador.getPuntajeCrupier());
-        }else mostrarMensaje("El puntaje actual del crupier es de: " + controlador.getPuntajeCrupier());
+    public void mostrarCartasJugador() {
+        // Implementado en notificarTurnoJugador
     }
-//    public void mostrarManoCrupierVista() {
-//        mostrarMensaje("");
-//        int sumatoriaPuntaje = 0;
-//        int ases = 0;
-//        int aux = 0;
-//        mostrarMensaje("El crupier tiene:");
-//        for (Carta carta : controlador.getManoCrupier()) {
-//            mostrarMensaje(carta.getValor() + " de " + carta.getPalo());
-//            sumatoriaPuntaje += carta.getValorNumerico();
-//            if (carta.getValorNumerico() == 1) ases++;
-//        }
-//        while (sumatoriaPuntaje > 21 && ases > 0){
-//            aux = sumatoriaPuntaje;
-//            sumatoriaPuntaje -= 10;
-//            ases--;
-//            if (ases == 1){
-//                aux = sumatoriaPuntaje;
-//                sumatoriaPuntaje -= 10;
-//                ases--;
-//            }
-//        }
-//        if ((controlador.getCrupierTieneAsPrimera() && sumatoriaPuntaje < 21) && aux < 21){
-//            mostrarMensaje("El puntaje actual del crupier es de: " + (controlador.getPuntajeCrupier()-10) + "/" + controlador.getPuntajeCrupier());
-//        }else mostrarMensaje("El puntaje actual del crupier es de: " + controlador.getPuntajeCrupier());
-//    }
 
-    /**
-     * Metodo para controlar al Crupier una vez se finaliza la opcion de pedir/doblar/dividir/plantarse
+    @Override
+    public void mostrarManoJugador() throws RemoteException {
+        mostrarManoActualizada();
+    }
 
-    public void turnoCrupier() {
-        while (controlador.crupierDebePedirCarta()){
-            mostrarMensaje("El crupier está obteniendo una carta...");
-            try{
-                Thread.sleep(1000);
-            }catch(InterruptedException e){
+    @Override
+    public void mostrarManosDivididasJugadorVista() throws RemoteException {
+        SwingUtilities.invokeLater(() -> {
+            try {
+                if (!esmiTurno) {
+                    return;
+                }
+
+                if (!controlador.jugadorDividio()) {
+                    return;
+                }
+
+                List<Mano> manos = controlador.getManosJugador();
+                if (manos.size() != 2) {
+                    return;
+                }
+
+                mostrarMensaje("\n");
+                mostrarMensaje(linea(50) + "\n");
+                mostrarMensaje("MANOS DIVIDIDAS\n");
+                mostrarMensaje(linea(50) + "\n\n");
+
+                // MANO 1
+                mostrarMensaje("--- MANO 1 ---\n");
+                Mano mano1 = manos.get(0);
+                for (Carta carta : mano1.getMano()) {
+                    mostrarMensaje("  • " + carta.getValor() + " de " + carta.getPalo() + "\n");
+                }
+                mostrarMensaje("Puntaje: " + mano1.getPuntaje() + "\n\n");
+
+                // MANO 2
+                mostrarMensaje("--- MANO 2 ---\n");
+                Mano mano2 = manos.get(1);
+                for (Carta carta : mano2.getMano()) {
+                    mostrarMensaje("  • " + carta.getValor() + " de " + carta.getPalo() + "\n");
+                }
+                mostrarMensaje("Puntaje: " + mano2.getPuntaje() + "\n\n");
+
+                if (controlador.getManoActualIndex() == 0){
+                    mostrarMensaje(linea(50) + "\n");
+                    mostrarMensaje("Ahora vas a jugar la MANO 1 primero.\n");
+                    mostrarMensaje(linea(50) + "\n\n");
+                }
+
+            } catch (RemoteException e) {
                 e.printStackTrace();
             }
-            controlador.crupierPideCarta();
-            mostrarManoCrupierVista();
-            imprimioCartas = true;
-        }
-        if (!imprimioCartas) mostrarManoCrupierVista();
-
-        // Verifico si la mano se paso de 21
-        if (controlador.crupierSePaso21()){
-            mostrarMensaje("El crupier se pasó de los 21.");
-        }else mostrarMensaje("El crupier se planta en " + controlador.getPuntajeCrupier() + ".");
-        if (controlador.getPuntajeCrupier() >= 17){
-            mostrarMensaje("====================================");
-            mostrarMensaje("Evaluando ganadores...");
-            mostrarMensaje("Presione Enter para continuar...");
-        }
+        });
     }
+
+    @Override
+    public void mostrarPuntuacionParcial() throws RemoteException {
+        int puntaje = controlador.getPuntajeMano();
+        mostrarMensaje("Tu puntaje: " + puntaje + "\n");
+    }
+
+    @Override
+    public void mostrarPuntuacionParcialCrupier() throws RemoteException {
+        int puntaje = controlador.getManoCrupier().getFirst().getValorNumerico();
+        mostrarMensaje("Puntaje crupier: " + puntaje + "\n");
+    }
+
+    @Override
+    public void cicloPartida() {
+        // Implementado en el flujo principal
+    }
+
+    /**
+     * Muestra los resultados finales de la partida
      */
-    private int checkEstadoMano() throws RemoteException {
-        Mano mano = controlador.obtenerManoJugador();
-        if (mano != null) {
-            if (controlador.getJugadorSePlanto()){
-                return 6; // 6 = se planta el jugador
-            }
-            if (!controlador.getJugadorDividio()) controlador.mostrarManoJugador();
-            if (controlador.getJugadorTieneBlackjack()) {
-                // mostrarManoJugadorVista();
-                // mostrarMensaje("Felicitaciones " + controlador.getNombreJugador() + " conseguiste BJ!");
-                return 1; // 1 == Blackjack al Jugador
-            }
-            if (controlador.getCrupierTieneAsPrimera() && !controlador.getJugadorPidioCarta()){
-                controlador.checkJugadorPagaSeguro();
-                if (controlador.getSaldoJugadorActual() >= controlador.getApuestaJugador()/2){
-//                    int seguroBlackjack = JOptionPane.showConfirmDialog(
-//                            frame, // JFrame
-//                            "ATENCIÓN! El crupier tiene un As de primera.",
-//                            "¿Desea pagar el seguro?",
-//                            JOptionPane.YES_NO_OPTION
-//                    );
-                    String seguroBlackjack = txtEntrada.getText();
-                    if (Integer.parseInt(seguroBlackjack) == 1) {
-                        controlador.setPagoSeguroJugador(true);
-                        mostrarMensaje("El jugador " + controlador.getNombreJugador() + " decidió pagar el seguro.");
-                        controlador.ajustarSaldoJugador(-(controlador.getApuestaJugador() / 2));
-                        return 2; // Jugador Pago Seguro BJ
-                    } else {
-                        mostrarMensaje(controlador.getNombreJugador() + " decidió no pagar el seguro.");
-                    }
-                }else mostrarMensaje("[!] No podés pagar el seguro debido que no tenés saldo suficiente (" + controlador.getSaldoJugadorActual() + ").");
-            }
-            if (controlador.getSePaso21Index(0)){
-                return 4; // Jugador se pasa de 21.
-            }
-            if (controlador.getJugadorPuedeDividir() && controlador.getSaldoJugadorActual() >= controlador.getApuestaJugador()){
-                // El jugador puede dividir por lo que retorno un '3'
-                return 3; // puede dividir
-            }
-            if (controlador.getJugadorPidioCarta()) return 5; // Muestra Menu sin posibilidad de doblar ni dividir.
-
-            return 0; // Continua el juego normalmente
-        }
-        flag = false;
-        return -1; // Error en el chequeo
-    }
-    private void procesarDecisionJugador(String decision, int i) throws RemoteException{
-        if (decision.equals("c")){
-            mostrarMensaje(controlador.getNombreJugador() + " pidió una carta.");
-            controlador.setJugadorPidioCarta(true);
-            // controlador.recibirCartaJugador();
-            controlador.setRepartirCartaAMano(i);
-            if (controlador.getManosJugador().size() == 1) controlador.mostrarManoJugador();
-            else mostrarManosDivididasJugadorVista();
-            if (!controlador.getSePaso21Index(i)){
-                mostrarMenuOpcionesYaPidio();
-                vaDecisionJugador = true;
-            }
-        }else if (decision.equals("p")){
-            if (controlador.getManosJugador().size() == 2) mostrarMensaje(controlador.getNombreJugador() + " se plantó con " + controlador.getPuntajeManosIndices(i) + " en la mano " + (i+1) + ".");
-            else mostrarMensaje(controlador.getNombreJugador() + " se plantó con " + controlador.getPuntajeMano() + ".");
-            controlador.setJugadorSePlanto(true);
-        }else if (decision.equals("s")){
-            if ((controlador.getSaldoJugadorActual() >= controlador.getApuestaJugador()) && controlador.compararDosCartasIguales() && !controlador.getJugadorDividio()){
-                mostrarMensaje(controlador.getNombreJugador() + " dividió la mano.");
-                dividirMano();
-            }else if (controlador.getJugadorDividio()){
-                mostrarMensaje("[!] -> Ya dividiste. No podés dividir dos veces!");
-            }
-            else{
-                // mostrarMensaje("[!] No podés dividir dado que no tenés saldo suficiente!");
-                mostrarMensaje("[!] -> Saldo no disponible para dividir.");
-                estadoJugador = checkEstadoMano();
-                if (estadoJugador >= 0) mostrarEstadosJugador(estadoJugador);
-                flag = true;
-                return;
-            }
-        }else if (decision.equals("d")){
-            if (controlador.getSaldoJugadorActual() >= controlador.getApuestaJugador() && !controlador.getJugadorPidioCarta()){
-                mostrarMensaje(controlador.getNombreJugador() + " dobló la mano.");
-                controlador.recibirCartaJugador();
-                controlador.jugadorDobloMano();
-                controlador.setJugadorPidioCarta(true);
-                controlador.mostrarManoJugador();
-                vaDecisionJugador = false;
-            }else if (controlador.getJugadorPidioCarta()){
-                mostrarMensaje("[!] No podés doblar dado que ya pediste una carta!");
-            }else mostrarMensaje("[!] No podés doblar dado que no tenés saldo suficiente!");
-        }else mostrarMensaje("[!] Lo que se ingresó no es válido.");
-        if (!controlador.getJugadorSePlanto()){
-            if (controlador.getPuntajeMano() == 21){
-                this.mostrarMensaje("Felicitaciones, conseguiste 21!");
-                cambiarTurno();
-                vaDecisionJugador = false;
-            }else if (controlador.getSePaso21ManoPrincipal()){
-                this.mostrarMensaje("Te pasaste de 21. Perdiste.");
-                vaDecisionJugador = false;
-                cambiarTurno();
-            }else if (controlador.getJugadorDoblo()){
-                cambiarTurno();
-            }
-        }else cambiarTurno();
-        if (controlador.getIndiceJugadorActual() == controlador.getCantidadJugadoresTotal()){
-            vaDecisionJugador = false;
-        }else siguienteJugador();
-    }
-    private void dividirMano(){
-        mostrarMensaje("Dividiendo manos...");
-        controlador.dividirManoJugador();
-        controlador.setRepartirCartaAMano(0);
-        controlador.setRepartirCartaAMano(1);
-        controlador.setJugadorDividio(true);
-        mostrarManosDivididasJugadorVista();
-    }
-
-    private void cargarManoDividida() {
-        if (!inicioMano2 && controlador.manoAUsar() == 1){
-            // seteo como false que pidio carta para continuar con la mano 2
-            controlador.setJugadorPidioCarta(false);
-            controlador.setJugadorSePlanto(false);
-            estadoJugador = checkEstadoManosDivididas(1);
-            inicioMano2 = true;
-            // doy inicio a la mano 2
-            mostrarEstadosJugador(estadoJugador);
-        }
-    }
-    private int checkEstadoManosDivididas(int indiceMano){
-        // mismo que checkEstadoMano() pero con lógica de manos divididas (2 manos para un jugador).
-        List<Mano> manos = controlador.getManosJugador();
-        if (manos != null){
-            if (controlador.getJugadorSePlanto()){
-                return 6; // jugador se plantó con la mano i
-            }
-            // mostrarManosDivididasJugadorVista();
-            if (controlador.getTieneBlackjackPorIndiceMano(indiceMano)){
-                return 1; // blackjack para la mano i
-            }
-            // No se consulta por seguro dado que para eso primero se consulta con una sola mano y luego se procede al juego
-            if (controlador.getSePaso21Index(indiceMano)) return 4;
-            if (controlador.getJugadorPidioCarta()) return 5;
-            return 0; // retorna 0 y sigue normalmente
-        }
-        return -1;
-    }
-
-    private void mostrarMenuOpciones(){
-        if (controlador.getJugadorDividio()){
-            if (!inicioMano2){
-                mostrarMensaje("MANO " + (controlador.manoAUsar() + 1) + " --> " + controlador.getNombreJugador() + ": ingrese 'c' para pedir, 'd' para doblar o 'p' para plantarse: ");
-            }else mostrarMensaje("MANO " + (controlador.manoAUsar() + 2) + " --> " + controlador.getNombreJugador() + ": ingrese 'c' para pedir, 'd' para doblar o 'p' para plantarse: ");
-        }
-        else mostrarMensaje(controlador.getNombreJugador() + ": ingrese 'c' para pedir, 'd' para doblar o 'p' para plantarse: ");
-    }
-    private void mostrarMenuOpcionesYaPidio(){
-        if (controlador.getJugadorDividio()){
-            if (!inicioMano2){
-                mostrarMensaje("MANO " + (controlador.manoAUsar() + 1) + " --> " + controlador.getNombreJugador() + ": ingrese 'c' para pedir o 'p' para plantarse: ");
-            }else mostrarMensaje("MANO " + (controlador.manoAUsar() + 2) + " --> " + controlador.getNombreJugador() + ": ingrese 'c' para pedir o 'p' para plantarse: ");
-        }
-        else mostrarMensaje(controlador.getNombreJugador() + ": ingrese 'c' para pedir o 'p' para plantarse: ");
-    }
-    private void mostrarMenuOpcionesPuedeDividir(){
-        mostrarMensaje(controlador.getNombreJugador() + ": ingrese 'c' para pedir, 'd' para doblar, 's' para dividir o 'p' para plantarse: ");
-    }
-
-    public void mostrarCartasCrupier(){
-        mostrarMensaje("\nEl crupier tiene las siguientes cartas: ");
-        for (Carta c : controlador.getManoCrupier()){
-            mostrarMensaje(c.getValor() + " de " + c.getPalo());
-        }
-    }
     @Override
-    public void siguienteJugador(){
-        try {
-            estadoJugador = checkEstadoMano();
-            if (estadoJugador >= 0) mostrarEstadosJugador(estadoJugador);
-        } catch (RemoteException e) {
-            throw new RuntimeException(e);
-        }
+    public void mostrarResultados() {
+        SwingUtilities.invokeLater(() -> {
+            try {
+                mostrarMensaje("\n");
+                mostrarMensaje(linea(50) + "\n");
+                mostrarMensaje("RESULTADOS FINALES\n");
+                mostrarMensaje(linea(50) + "\n\n");
+
+                // datos
+                String miNombre = controlador.getNickname();
+                float miSaldo = controlador.getSaldoJugadorActual();
+                int puntajeCrupier = controlador.getPuntajeCrupier();
+                List<Carta> cartasCrupier = controlador.getCrupier().getManoCarta();
+
+                // MANO DEL CRUPIER
+                mostrarMensaje(linea(20) + "\n");
+                mostrarMensaje("||" + "MANO DEL CRUPIER"+" ||\n");
+                mostrarMensaje(linea(20) + "\n");
+
+                for (Carta carta : cartasCrupier) {
+                    mostrarMensaje("  • " + carta.getValor() + " de " + carta.getPalo() + "\n");
+                }
+
+                mostrarMensaje("\n  Puntaje: " + puntajeCrupier);
+                if (puntajeCrupier > 21) {
+                    mostrarMensaje("\nSE PASÓ!\n");
+                } else if (puntajeCrupier == 21 && cartasCrupier.size() == 2) {
+                    mostrarMensaje("\nEL CRUPIER OBTUVO BLACKJACK!\n");
+                } else {
+                    mostrarMensaje("\n");
+                }
+                mostrarMensaje("\n");
+
+                // verifico si tengo manos divididas
+                List<Mano> misManos = controlador.getManosJugador();
+                boolean tengoDividido = misManos.size() > 1;
+
+                if (tengoDividido) {
+                    // MANOS DIVIDIDAS
+                    mostrarResultadosManosDivididas(miNombre, puntajeCrupier, misManos);
+                } else {
+                    // MANO SIMPLE
+                    mostrarResultadoManoSimple(miNombre, puntajeCrupier);
+                }
+
+                // SALDO ACTUALIZADO
+                mostrarMensaje("Saldo actual: $" + String.format("%.2f", miSaldo) + "\n\n");
+
+                // Resetear estados
+                faseJuego = false;
+                esperandoDecision = false;
+                esmiTurno = false;
+                controlador.solicitarVotacion();
+            } catch (RemoteException e) {
+            }
+        });
     }
-    private void partidaComenzada(){
-        controlador.setIndiceJugador(controlador.getCantidadJugadoresTotal()-1);
-        if (controlador.getManosJugador().size() == 2) flagArrancoPartida = true;
-        controlador.setIndiceJugador(0);
+
+    /**
+     * Muestra resultados de una mano simple
+     */
+    private void mostrarResultadoManoSimple(String nombre, int puntajeCrupier) throws RemoteException {
+
+        mostrarMensaje(linea(30) + "\n");
+        mostrarMensaje("||" + "      TUS MANOS (" + nombre + ")"      +" ||\n");
+        mostrarMensaje(linea(30) + "\n");
+
+        int miPuntaje = controlador.getPuntajeMano();
+        List<Carta> misCartas = controlador.getCartasMano();
+
+        for (Carta carta : misCartas) {
+            mostrarMensaje("  • " + carta.getValor() + " de " + carta.getPalo() + "\n");
+        }
+
+        mostrarMensaje("\n  Puntaje: " + miPuntaje);
+
+        // Verificar Blackjack
+        if (miPuntaje == 21 && misCartas.size() == 2) {
+            mostrarMensaje("\nBLACKJACK\n\n");
+            mostrarMensaje(linea(50) + "\n");
+            mostrarMensaje("\nBLACKJACK! GANASTE!!!\n");
+            mostrarMensaje(linea(50) + "\n\n");
+            return;
+        }
+
+        // Evaluación normal
+        mostrarMensaje("\n\n");
+        mostrarMensaje(linea(50) + "\n");
+
+        if (miPuntaje > 21) {
+            mostrarMensaje("PERDISTE - Te pasaste\n");
+        } else if (puntajeCrupier > 21) {
+            mostrarMensaje("GANASTE! - El crupier se pasó\n");
+        } else if (miPuntaje > puntajeCrupier) {
+            mostrarMensaje("GANASTE! - " + miPuntaje + " vs " + puntajeCrupier + "\n");
+        } else if (miPuntaje < puntajeCrupier) {
+            mostrarMensaje("PERDISTE - " + miPuntaje + " vs " + puntajeCrupier + "\n");
+        } else {
+            mostrarMensaje("EMPATE - Apuesta devuelta\n");
+        }
+
+        mostrarMensaje(linea(50) + "\n\n");
+    }
+
+    /**
+     * Muestra resultados de manos divididas
+     */
+    private void mostrarResultadosManosDivididas(String nombre, int puntajeCrupier, List<Mano> manos) throws RemoteException {
+
+        mostrarMensaje(linea(40) + "\n");
+        mostrarMensaje("||" + "      TUS MANOS (" + nombre + ")"      +" ||\n");
+        mostrarMensaje(linea(40) + "\n");
+
+        // Mano 1
+        mostrarMensaje("--- MANO 1 ---\n");
+        int puntajeMano1 = controlador.getPuntajeManosIndices(0);
+        List<Carta> cartasMano1 = manos.get(0).getMano();
+
+        for (Carta carta : cartasMano1) {
+            mostrarMensaje("  • " + carta.getValor() + " de " + carta.getPalo() + "\n");
+        }
+        mostrarMensaje("Puntaje: " + puntajeMano1 + "\n");
+        mostrarMensaje("Resultado: " + evaluarMano(puntajeMano1, puntajeCrupier) + "\n\n");
+
+        // Mano 2
+        mostrarMensaje("--- MANO 2 ---\n");
+        int puntajeMano2 = controlador.getPuntajeManosIndices(1);
+        List<Carta> cartasMano2 = manos.get(1).getMano();
+
+        for (Carta carta : cartasMano2) {
+            mostrarMensaje("  • " + carta.getValor() + " de " + carta.getPalo() + "\n");
+        }
+        mostrarMensaje("Puntaje: " + puntajeMano2 + "\n");
+        mostrarMensaje("Resultado: " + evaluarMano(puntajeMano2, puntajeCrupier) + "\n\n");
+    }
+
+    /**
+     * Evalúa el resultado de una mano
+     */
+    private String evaluarMano(int puntajeJugador, int puntajeCrupier) {
+        if (puntajeJugador > 21) {
+            return "PERDISTE";
+        } else if (puntajeCrupier > 21) {
+            return "GANASTE!";
+        } else if (puntajeJugador > puntajeCrupier) {
+            return "GANASTE!";
+        } else if (puntajeJugador < puntajeCrupier) {
+            return "PERDISTE";
+        } else {
+            return "EMPATE";
+        }
     }
 
     @Override
-    public void mostrarManoJugador(){
-        mostrarMensaje("========================================================");
-        mostrarCartasJugador();
-        mostrarPuntuacionParcial();
-        mostrarMensaje("========================================================");
-    }
-    @Override
-    public void mostrarManoCrupier(){
-        mostrarMensaje("========================================================");
-        mostrarCartasCrupier();
-        mostrarPuntuacionParcialCrupier();
-        mostrarMensaje("========================================================");
+    public void mostrarVotacion() {
+        SwingUtilities.invokeLater(() -> {
+            try {
+                if (votacionMostrada) return;
+
+                enVotacion = true;
+                esperandoDecision = true;
+                votacionMostrada = true;
+
+                mostrarMensaje("\n");
+                mostrarMensaje(linea(50) + "\n");
+                mostrarMensaje("QUERES JUGAR OTRA PARTIDA?\n");
+                mostrarMensaje(linea(50) + "\n\n");
+
+                float saldo = controlador.getSaldoJugadorActual();
+                mostrarMensaje("Tu saldo actual: $" + String.format("%.2f", saldo) + "\n\n");
+
+                if (saldo == 0) {
+                    mostrarMensaje("️No tenes saldo suficiente.\n");
+                    mostrarMensaje("Deberías votar NO o recargar saldo.\n\n");
+                    mostrarMensaje("Podés recargar en la fase de APUESTAS!");
+                }
+
+                mostrarMensaje("\nEscribi tu voto (SI - NO):\n");
+                mostrarMensaje("SI - Jugar otra partida\n");
+                mostrarMensaje("NO - Salir de esta partida\n\n");
+                mostrarMensaje("Voto: ");
+
+            } catch (RemoteException e) {
+            }
+        });
     }
 
     @Override
-    public void notificarTurnoJugador(){
-        mostrarMensaje("Es el turno de: " + controlador.getNombreJugador() + "\n");
-        mostrarMensaje("El saldo del jugador es de: " + controlador.getSaldoJugadorActual());
-        mostrarMensaje("El crupier tiene: " + controlador.crupierMuestraPrimerCarta());
-        mostrarManoJugador();
+    public void actualizarEstadoVotacion() {
+        SwingUtilities.invokeLater(() -> {
+            try {
+                String estado = controlador.getEstadoVotacion();
+                mostrarMensaje("\n[VOTACIÓN] " + estado + "\n");
+            } catch (RemoteException e) {
+            }
+        });
     }
+
+    @Override
+    public void jugadorLlegoA21() {
+        SwingUtilities.invokeLater(() -> {
+            try {
+                int puntaje = controlador.getPuntajeMano();
+
+                mostrarMensaje("\nLlegaste a 21 puntos!\n");
+                mostrarMensaje("Puntaje: " + puntaje + "\n");
+                mostrarMensaje("Te plantas automáticamente.\n\n");
+
+                // verifico si dividió Y tiene mas de una mano
+                List<Mano> manos = controlador.getManosJugador();
+                boolean dividio = controlador.jugadorDividio();
+
+                if (dividio && manos.size() > 1) {
+                    mostrarMensaje("Mano 1 llegó a 21. Esperando mano 2...\n");
+                    // NO resetear estados
+                } else {
+                    mostrarMensaje("Esperando a los demás jugadores...\n");
+                    esmiTurno = false;
+                    esperandoDecision = false;
+                    faseJuego = false;
+                }
+
+            } catch (RemoteException e) {
+            }
+        });
+    }
+
+    @Override
+    public void jugadorSePaso() {
+        SwingUtilities.invokeLater(() -> {
+            try {
+                int puntaje = controlador.getPuntajeMano();
+
+                mostrarMensaje("\nTe pasaste de 21!\n");
+                mostrarMensaje("Puntaje final: " + puntaje + "\n");
+                mostrarMensaje("Perdiste esta mano :(\n\n");
+
+                // verifico si dividió Y tiene múltiples manos
+                List<Mano> manos = controlador.getManosJugador();
+                boolean dividio = controlador.jugadorDividio();
+
+                // si dividió y tiene 2 manos, significa que hay mano 2 pendiente todavia
+                if (dividio && manos.size() > 1) {
+                    mostrarMensaje("Mano 1 se pasó. Esperando mano 2...\n");
+
+                } else {
+                    // NO hay más manos - resetear estados
+                    mostrarMensaje("Esperando a los demás jugadores...\n");
+
+                    esmiTurno = false;
+                    esperandoDecision = false;
+                    faseJuego = false;
+                }
+
+            } catch (RemoteException e) {
+                e.printStackTrace();
+            }
+        });
+    }
+
+    @Override
+    public void cambiarAMano2() {
+        SwingUtilities.invokeLater(() -> {
+            try {
+                // los estados siguen activos
+                esmiTurno = true;
+                faseJuego = true;
+                esperandoDecision = true;
+
+                mostrarMensaje("\n==================================================\n");
+                mostrarMensaje("       Ahora juega la MANO 2\n");
+                mostrarMensaje("==================================================\n\n");
+
+                mostrarManosDivididasJugadorVista();
+
+                mostrarMensaje("PEDIR | PLANTAR | DOBLAR | DIVIDIR | AYUDA\n");
+                mostrarMensaje("Decisión: ");
+
+            } catch (RemoteException e) {
+            }
+        });
+    }
+
 }
-

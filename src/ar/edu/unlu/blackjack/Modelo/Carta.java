@@ -1,6 +1,8 @@
 package ar.edu.unlu.blackjack.Modelo;
 
-public class Carta {
+import java.io.Serializable;
+
+public class Carta implements Serializable {
     private String palo; // Corazon, Diamante, Pica, Trebol
     private String valor; // 2-10, J, Q, K, A
 
@@ -11,10 +13,10 @@ public class Carta {
 
     // Getters
     public String getPalo() {
-        return palo;
+        return this.palo;
     }
     public String getValor() {
-        return valor;
+        return this.valor;
     }
 
     public int getValorNumerico(){

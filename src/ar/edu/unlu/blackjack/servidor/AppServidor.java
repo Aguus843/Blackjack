@@ -5,7 +5,8 @@ import java.util.ArrayList;
 
 import javax.swing.JOptionPane;
 
-import ar.edu.unlu.blackjack.Modelo.*;
+import ar.edu.unlu.blackjack.Modelo.BlackjackJuego;
+import ar.edu.unlu.blackjack.Modelo.IBlackjackJuego;
 import ar.edu.unlu.rmimvc.RMIMVCException;
 import ar.edu.unlu.rmimvc.Util;
 import ar.edu.unlu.rmimvc.servidor.Servidor;
@@ -16,7 +17,7 @@ public class AppServidor {
         ArrayList<String> ips = Util.getIpDisponibles();
         String ip = (String) JOptionPane.showInputDialog(
                 null,
-                "Seleccione la IP en la que escuchar� peticiones el servidor", "IP del servidor",
+                "Seleccione la IP en la que escuchara peticiones el servidor", "IP del servidor",
                 JOptionPane.QUESTION_MESSAGE,
                 null,
                 ips.toArray(),
@@ -24,13 +25,13 @@ public class AppServidor {
         );
         String port = (String) JOptionPane.showInputDialog(
                 null,
-                "Seleccione el puerto en el que escuchar� peticiones el servidor", "Puerto del servidor",
+                "Seleccione el puerto en el que escuchara peticiones el servidor", "Puerto del servidor",
                 JOptionPane.QUESTION_MESSAGE,
                 null,
                 null,
                 8888
         );
-        BlackjackJuego modelo = new BlackjackJuego();
+        IBlackjackJuego modelo = new BlackjackJuego();
         Servidor servidor = new Servidor(ip, Integer.parseInt(port));
         try {
             servidor.iniciar(modelo);

@@ -6,57 +6,29 @@ import java.rmi.RemoteException;
 import java.util.List;
 
 public interface IBlackjackJuego extends IObservableRemoto {
-    Crupier getCrupier();
+    Crupier getCrupier() throws RemoteException;
 
-    Mazo getMazo();
+    Mazo getMazo() throws RemoteException;
 
-    void setIndiceJugador(int indice);
+    void setIndiceJugador(int indice) throws RemoteException;
 
-    List<Mano> manosJugador();
+    void cambiarTurno() throws RemoteException;
 
-    List<Jugador> getJugadores();
+    Jugador getJugadorActualTurno() throws RemoteException;
 
-    void setNickname(String nickname);
-
-    void setSaldo(float saldo);
-
-    String getNickname();
-
-    float getSaldo();
-
-    void mostrarManoJugador() throws RemoteException;
-
-    void mostrarManoCrupier() throws RemoteException;
-
-    void cambiarTurno();
-
-    Jugador getJugadorActualTurno();
-
-    Mano getManoJugador();
-
-    void checkSiPuedePagarSeguroBlackjack() throws RemoteException;
-
-    float getApuestaJugador();
-
-    int getIndice();
-
-    int getCantidadJugadores();
-
-    void setCantidadJugadores(int cantidad);
+    int getIndice() throws RemoteException;
 
     void setDividirMano() throws RemoteException;
 
-    boolean crupierSePaso21();
-
-    void setAjustarSaldo(Jugador jugador, float monto) throws RemoteException;
+    boolean crupierSePaso21() throws RemoteException;
 
     void setApuesta(Jugador jugador, float monto) throws RemoteException;
 
     boolean realizarApuesta(String monto) throws RemoteException;
 
-    void configurarJugadores(String nickname, float saldo);
+    Jugador configurarJugadores(String nickname, float saldo) throws RemoteException;
 
-    void repartirCartasIniciales(Jugador jugador);
+    void repartirCartasIniciales() throws RemoteException;
 
     void evaluarGanadores() throws RemoteException;
 
@@ -69,4 +41,43 @@ public interface IBlackjackJuego extends IObservableRemoto {
     void adjudicarGanancia(Jugador jugador, float apuesta) throws RemoteException;
 
     void turnoCrupier() throws RemoteException;
+
+    boolean todosJugadoresListos() throws RemoteException;
+
+    List<String> getNombresJugadoresConectados() throws RemoteException;
+
+    int getCantidadJugadoresConectados() throws RemoteException;
+
+    int getCantidadJugadoresListos() throws RemoteException;
+
+    boolean intentarComenzarPartida() throws RemoteException;
+
+    void inicializarPartida() throws RemoteException;
+
+    Jugador getJugadorPorNickname(String nickname) throws RemoteException;
+
+    List<Carta> getCartasJugador(String nickname) throws RemoteException;
+
+    int getPuntajeJugador(String nickname) throws RemoteException;
+
+    void repartirCartaAJugador(String nickname) throws RemoteException;
+
+    void jugadorSePlanta() throws RemoteException;
+
+    void jugadorDoblaApuesta() throws RemoteException;
+
+    void votarNuevaPartida(String nickname, boolean voto) throws RemoteException;
+
+    String getEstadoVotacion() throws RemoteException;
+
+    void iniciarVotacionNuevaPartida() throws RemoteException;
+
+    boolean recargarSaldo(String nickname, float monto) throws RemoteException;
+
+    void pedirCartaJugador() throws RemoteException;
+
+    int getManoActualIndex() throws RemoteException;
+
+    String obtenerRankingTotal() throws RemoteException;
+
 }

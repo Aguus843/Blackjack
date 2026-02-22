@@ -1,40 +1,61 @@
 package ar.edu.unlu.blackjack.Modelo;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 
-public class Jugador {
+public class Jugador implements Serializable {
     private String nombre;
     private List<Mano> manos;
     private Saldo saldo;
     private float apuesta;
     private float apuestaMano2;
     private boolean pagoSeguro;
-    private float montoDeApuesta;
-    private boolean pidioCarta;
     private boolean sePlanto;
     private boolean jugadorDividio;
+
+    private boolean activo = true;  // Si está participando en la partida actual
+    private Boolean votoNuevaPartida = null;  // null = no votó, true = si, false = no
 
     public Jugador(String nombre, float saldoInicial) {
         this.nombre = nombre;
         this.manos = new ArrayList<>();
-        this.montoDeApuesta = 0;
-        this.pidioCarta = false;
         this.saldo = new Saldo(saldoInicial);
         this.apuesta = 0;
         this.apuestaMano2 = 0;
         this.pagoSeguro = false;
         this.jugadorDividio = false;
+        manos.add(new Mano());
     }
-    public boolean getDoblo(){
-        if (multiplesManos()){
-            if (getManoActual().getDoblo()){
-                return true;
-            }
-            return getMano2().getDoblo();
-        }else return getManoActual().getDoblo();
+
+    public boolean getActivo() {
+        return this.activo;
     }
+    public void setActivo(boolean activo){
+        this.activo = activo;
+    }
+    public Boolean getVotoNuevaPartida(){
+        return this.votoNuevaPartida;
+    }
+    public void setVotoNuevaPartida(Boolean voto) {
+        this.votoNuevaPartida = voto;
+    }
+
+    public void resetearParaNuevaPartida() {
+        this.votoNuevaPartida = null;
+        this.sePlanto = false;
+        this.pagoSeguro = false;
+        this.apuesta = 0;
+        this.apuestaMano2 = 0;
+        this.jugadorDividio = false; // reseteo flag de que el jugador dividio manos
+
+        // reseteo la/s mano/s
+        manos.clear();
+        manos.add(new Mano());
+
+    }
+
     public boolean getSePlanto(){
         return this.sePlanto;
     }
@@ -53,27 +74,26 @@ public class Jugador {
     public void ajustarSaldo(float monto){
         if (monto > 0){
             saldo.agregarSaldo(monto);
-            System.out.println("Saldo agregado: " + getSaldo()+monto);
+            // System.out.println("Saldo agregado: " + getSaldo()+monto);
         }else {
             if (!saldo.retirarSaldo(-monto)) {
-                System.out.println("Saldo insuficiente para apostar: " + monto);
+                // System.out.println("Saldo insuficiente para apostar: " + monto);
             }
         }
     }
-    public void setJugadorPidioCarta(boolean pidioCarta){
-        this.pidioCarta = pidioCarta;
+    public void retirarSaldo(float monto){
+        if (monto > 0) saldo.retirarSaldo(monto);
+        else if (saldo.retirarSaldo(-monto)) return;
     }
-    public boolean getJugadorPidioCarta(){
-        return this.pidioCarta;
-    }
-
 
     // Metodo que reparte a UNA mano.
     public void repartirCartaAMano(int indexMano, Carta carta){
         List<Mano> manos = getManos();
-        if (indexMano  >= 0 && indexMano < manos.size()){
-            manos.get(indexMano).recibirCarta(carta);
-        }else System.out.println("El indice de mano no es valido.");
+        while (manos.size() <= indexMano){
+            manos.add(new Mano());
+        }
+
+        if (carta != null) manos.get(indexMano).recibirCarta(carta);
     }
 
     public String getNombre() {
@@ -91,24 +111,17 @@ public class Jugador {
     public void setApuesta(float monto){
         this.apuesta = monto;
     }
-    public void setMonto(float monto){
-        this.montoDeApuesta = monto;
-    }
-    public float getMontoDeApuesta(){
-        return this.montoDeApuesta;
-    }
     public boolean getPagoSeguro(){
         return this.pagoSeguro;
     }
     public void agregarMano(){
         manos.add(new Mano());
     }
-    public void iniciarMano(){
-        manos.clear();
-        manos.add(new Mano());
+    public void eliminarMano(){
+        manos.remove(1);
     }
     // Getter de mano actual (Cuando NO hay division)
-    public Mano getManoActual(){
+    public Mano getManoActual() {
         return manos.getFirst();
     }
     public Mano getMano2(){
@@ -134,7 +147,7 @@ public class Jugador {
     public boolean tieneBlackjack(){
         List<Mano> manos = getManos();
         for (Mano mano : manos) {
-            String primeraCarta = mano.getMano().getFirst().getValor(); // Asegúrate de que `getValor()` devuelve el valor como String
+            String primeraCarta = mano.getMano().getFirst().getValor();
             String segundaCarta = mano.getMano().get(1).getValor();
 
             if (primeraCarta.equals("A") && (segundaCarta.equals("10") || segundaCarta.equals("J") || segundaCarta.equals("Q") || segundaCarta.equals("K"))) {
@@ -145,9 +158,4 @@ public class Jugador {
         }
         return false;
     }
-
-    public boolean debeSeguirJugando(){
-        return sePlanto || tieneBlackjack() || getManoActual().sePaso21();
-    }
-    // verifico cualquiera de las posibilidades para saber si el jugador debe seguir jugando o no
 }

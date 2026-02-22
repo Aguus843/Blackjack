@@ -1,6 +1,8 @@
 package ar.edu.unlu.blackjack.Modelo;
 
-public class Saldo {
+import java.io.Serializable;
+
+public class Saldo implements Serializable {
     private float cantidad;
 
     public Saldo(float cantidadInicial) {

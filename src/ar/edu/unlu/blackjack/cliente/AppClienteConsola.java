@@ -8,6 +8,7 @@ import javax.swing.JOptionPane;
 import ar.edu.unlu.blackjack.Controlador.*;
 import ar.edu.unlu.blackjack.Vista.ConsolaGrafica.consolaGrafica;
 import ar.edu.unlu.blackjack.Vista.IVista;
+import ar.edu.unlu.blackjack.Vista.interfazGrafica.interfazGrafica;
 import ar.edu.unlu.rmimvc.RMIMVCException;
 import ar.edu.unlu.rmimvc.Util;
 import ar.edu.unlu.rmimvc.cliente.Cliente;
@@ -50,15 +51,19 @@ public class AppClienteConsola {
         );
         IVista vista = new consolaGrafica();
         Controlador controlador = new Controlador(vista);
+        // VISTA CONSOLA
         vista.setControlador(controlador);
         Cliente c = new Cliente(ip, Integer.parseInt(port), ipServidor, Integer.parseInt(portServidor));
-        vista.iniciarJuego();
         try {
+            // VISTA CONSOLA
             c.iniciar(controlador);
         } catch (RemoteException | RMIMVCException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
         }
+
+        // INICIAR VISTA SEGUN QUIERA
+        vista.iniciarJuego();
     }
 
 }

@@ -1,9 +1,10 @@
 package ar.edu.unlu.blackjack.Modelo;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 
-public class Mazo {
+public class Mazo implements Serializable {
     private ArrayList<Carta> cartas;
 
     public Mazo() {
@@ -14,7 +15,7 @@ public class Mazo {
         // Tests
         // String[] valores = {"A", "J", "10", "K", "Q"};
         // String[] valores = {"A", "2", "3", "4", "5"};
-        // String[] valores = {"J", "K"};
+        // String[] valores = {"K", "K", "K"};
 
         // Inicializo las cartas con sus valores
         for (String palo : palos) {
@@ -47,7 +48,10 @@ public class Mazo {
         cartas.clear();
         String[] palos = {"Diamantes", "Tréboles", "Corazones", "Picas"};
         String[] valores = {"A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"};
+        // String[] valores = {"K", "K", "K"};
         // String[] valores = {"A", "K"};
+        // String[] valores = {"J", "K"};
+        // String[] valores = {"A", "J", "K"};
 
         // Inicializo las cartas con sus valores
         for (String palo : palos) {

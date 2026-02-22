@@ -4,47 +4,35 @@ import java.io.Serializable;
 import java.util.HashMap;
 
 public class AdministradorJugadorMasGanador implements Serializable {
-    HashMap<String, Integer> nicknameJugadorGanador;
-    Serializador serializador;
+
+    private static final String ARCHIVO = "rankingJugadores.dat";
+
+    private HashMap<String, DatosJugador> jugadores;
+    private final Serializador serializador;
+
     public AdministradorJugadorMasGanador() {
-        nicknameJugadorGanador = new HashMap<>();
         serializador = new Serializador();
+        jugadores = cargarDesdeArchivo();
     }
 
-    public void escribir(){
-        serializador.escribir("JugadorSerializado.bin", nicknameJugadorGanador);
+    // guarda la victoria para el jugador (lo agrega si no existe)
+    public void guardarVictoria(String nickname, float dineroGanado) {
+        jugadores = cargarDesdeArchivo(); // recarga por si hubo cambios
+        jugadores.putIfAbsent(nickname, new DatosJugador(nickname));
+        jugadores.get(nickname).registrarVictoria(dineroGanado);
+        serializador.escribir(ARCHIVO, jugadores);
     }
 
-    public HashMap<String, Integer> leer(){
-        return (HashMap<String, Integer>) serializador.leer("JugadorSerializado.bin");
+    // Devuelve todos los jugadores registrados
+    public HashMap<String, DatosJugador> obtenerTodosLosJugadores() {
+        return cargarDesdeArchivo();
     }
 
-    public void agregarJugadorHashMap(String nickname, Integer partidasGanadas){
-        nicknameJugadorGanador = leer(); // variable HashMap<String, Integer> -> return idem
-        nicknameJugadorGanador.put(nickname, partidasGanadas);
-    }
-
-    /* actualizo el archivo, pero primero verifico si el nickname existe en el hashmap, si es asi, incrementa la cant de partidas ganadas
-    y vuelve a escribir en el serializador.
-    Si no se encuentra el nickname, se lo agrega y escribe el archivo bin.
-    */
-    public void actualizarArchivo(String nickname){
-        boolean existe = false;
-        nicknameJugadorGanador = leer();
-        for (String nombreJugador : nicknameJugadorGanador.keySet()){
-            if (nombreJugador.equals(nickname)){
-                existe = true;
-                int partidasGanadas = nicknameJugadorGanador.get(nickname) + 1;
-                nicknameJugadorGanador.put(nickname, partidasGanadas);
-            }
+    private HashMap<String, DatosJugador> cargarDesdeArchivo() {
+        Object leido = serializador.leer(ARCHIVO);
+        if (leido instanceof HashMap) {
+            return (HashMap<String, DatosJugador>) leido;
         }
-        if (existe){
-            // si existe sobrescribo el archivo directamente.
-            escribir();
-        }else{
-            // si no existe lo agrego y lo guardo
-            agregarJugadorHashMap(nickname, 1);
-            escribir();
-        }
+        return new HashMap<>(); // primera vez que se usa, archivo vacío
     }
 }
