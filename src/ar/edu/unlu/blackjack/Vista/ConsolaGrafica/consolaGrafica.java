@@ -33,6 +33,11 @@ public class consolaGrafica implements IVista {
     private boolean enVotacion;
     private boolean votacionMostrada;
 
+    // ==================== SEGURO ====================
+    // true mientras el servidor espera que este jugador responda la oferta de seguro
+    private boolean esperandoRespuestaSeguro = false;
+    // ================================================
+
     public consolaGrafica() {
         iniciarConsola();
         configurarApariencia();
@@ -96,7 +101,8 @@ public class consolaGrafica implements IVista {
         esmiTurno = false;
         esperandoDecision = false;
         enVotacion = false;
-        votacionMostrada = false; // flag para evitar que el mensaje de votacion se muestre mas de una vez
+        votacionMostrada = false;
+        esperandoRespuestaSeguro = false;
     }
 
     private void configurarEntradas() {
@@ -136,6 +142,18 @@ public class consolaGrafica implements IVista {
                 txtSalida.setCaretPosition(txtSalida.getDocument().getLength());
                 return;
             }
+
+            // ==================== SEGURO ====================
+            // Cuando el servidor ofreció el seguro, SOLO aceptamos SI / NO.
+            // Cualquier otro comando se ignora hasta que el jugador responda.
+            if (esperandoRespuestaSeguro) {
+                procesarRespuestaSeguro(entrada);
+                txtEntrada.setText("");
+                txtSalida.setCaretPosition(txtSalida.getDocument().getLength());
+                return;
+            }
+            // ================================================
+
             if (entrada.equalsIgnoreCase("saldo")) {
                 mostrarMensaje("\nTu saldo actual: $" + String.format("%.2f", controlador.getSaldoJugadorActual()) + "\n\n");
                 txtEntrada.setText("");
@@ -224,10 +242,9 @@ public class consolaGrafica implements IVista {
 
             for (int i = 0; i < limite; i++) {
                 String[] partes = filas[i].split(";");
-                String pos     = partes[0]; // posicion
-                String nombre  = partes[1]; // nickname
-                String ganadas = partes[2]; // partidas ganadas
-                String dinero  = "$" + partes[3]; // plata total
+                String nombre  = partes[1];
+                String ganadas = partes[2];
+                String dinero  = "$" + partes[3];
 
                 mostrarMensaje(String.format("  %-15s  %4s victorias  %12s  \n", nombre, ganadas, dinero));
             }
@@ -242,7 +259,6 @@ public class consolaGrafica implements IVista {
      * comando "RECARGAR <monto>"
      */
     private void procesarRecarga(String entrada) throws RemoteException {
-        // Parsear comando: "RECARGAR 500" o "recargar 500"
         String[] partes = entrada.trim().split("\\s+");
 
         if (partes.length != 2) {
@@ -260,7 +276,6 @@ public class consolaGrafica implements IVista {
             }
             float saldoAntes = controlador.getSaldoJugadorActual();
 
-            // Recargar el saldo al jugador
             boolean exito = controlador.recargarSaldo(monto);
 
             if (exito) {
@@ -297,8 +312,6 @@ public class consolaGrafica implements IVista {
             votacionMostrada = true;
             esperandoDecision = false;
 
-            // escribir("Esperando a los demás jugadores...\n");
-
         } else if (voto.equals("no") || voto.equals("n")) {
             mostrarMensaje("\nVotaste NO - Vas a salir de la partida\n");
             try {
@@ -315,14 +328,79 @@ public class consolaGrafica implements IVista {
             mostrarMensaje("Voto no válido. Escribi SI o NO.\n");
             mostrarMensaje("Voto: \n");
         }
-
-
     }
 
-    // ============================================================
-    // CONFIGURACIÓN INICIAL
-    // ============================================================
+    @Override
+    public void ofrecerSeguro() {
+        SwingUtilities.invokeLater(() -> {
+            try {
+                float apuesta      = controlador.getApuestaJugador();
+                float montoSeguro  = apuesta / 2f;
+                float saldo        = controlador.getSaldoJugadorActual();
+                boolean puedePagar = saldo >= montoSeguro;
 
+                mostrarMensaje("El crupier muestra un AS como primera carta.\n\n");
+                // mostrarMensaje("Tu apuesta actual: $" + String.format("%.2f", apuesta) + "\n");
+                mostrarMensaje("Costo del seguro: $" + String.format("%.2f", montoSeguro) + " (mitad de tu apuesta)\n");
+                mostrarMensaje("Tu saldo actual: $" + String.format("%.2f", saldo) + "\n\n");
+
+                if (puedePagar) {
+                    mostrarMensaje("Escribi: SI (pagar $" + String.format("%.2f", montoSeguro) + ") | NO (no pagar seguro)\n");
+                    mostrarMensaje("Respuesta: ");
+                    esperandoRespuestaSeguro = true;
+                } else {
+                    mostrarMensaje("No tenés saldo suficiente para contratar el seguro.\n");
+                    mostrarMensaje("(Necesitás $" + String.format("%.2f", montoSeguro) + ", tenés $" + String.format("%.2f", saldo) + ")\n\n");
+                    esperandoRespuestaSeguro = false;
+                    controlador.rechazarSeguro();
+                }
+
+            } catch (RemoteException e) {
+                mostrarMensaje("Error al procesar la oferta de seguro.\n");
+                esperandoRespuestaSeguro = false;
+                try { controlador.rechazarSeguro(); } catch (RemoteException ex) { ex.printStackTrace(); }
+            }
+        });
+    }
+
+    private void procesarRespuestaSeguro(String respuesta) {
+        respuesta = respuesta.trim().toLowerCase();
+
+        if (respuesta.equals("si") || respuesta.equals("sí") || respuesta.equals("s")) {
+            try {
+                float montoSeguro = controlador.getApuestaJugador() / 2f;
+                boolean exito = controlador.aceptarSeguro();
+
+                if (exito) {
+                    mostrarMensaje("\nSeguro pagado por $" + String.format("%.2f", montoSeguro) + ".\n");
+                } else {
+                    mostrarMensaje("\nNo podes pagar el seguro porque no tenes saldo suficiente.\n");
+                    mostrarMensaje("Se te rechaza el seguro automaticamente.\n\n");
+                    controlador.rechazarSeguro();
+                }
+            } catch (RemoteException e) {
+                mostrarMensaje("Error al aceptar el seguro.\n");
+                try { controlador.rechazarSeguro(); } catch (RemoteException ex) { ex.printStackTrace(); }
+            }
+
+        } else if (respuesta.equals("no") || respuesta.equals("n")) {
+            mostrarMensaje("\n[!] Seguro rechazado. La partida continúa normalmente.\n\n");
+            try {
+                controlador.rechazarSeguro();
+            } catch (RemoteException e) {
+                mostrarMensaje("Error al rechazar el seguro.\n");
+            }
+
+        } else {
+            mostrarMensaje("Escribí SI o NO.\n");
+            mostrarMensaje("Respuesta: ");
+            return;
+        }
+        esperandoRespuestaSeguro = false;
+        mostrarMensaje("Esperando que los demás jugadores respondan...\n");
+    }
+
+    // config inicial
     private void procesarConfiguracionInicial(String entrada) throws RemoteException {
         if (esperandoNickname) {
             procesarNickname(entrada);
@@ -338,7 +416,6 @@ public class consolaGrafica implements IVista {
             return;
         }
 
-        // controlador.setNickname(entrada);
         this.nicknameTemporal = entrada;
         mostrarMensaje("Nickname: " + entrada + "\n\n");
 
@@ -457,11 +534,9 @@ public class consolaGrafica implements IVista {
         if (apuestaExitosa) {
             mostrarMensaje("Apostaste: $" + String.format("%.0f", monto) + "\n\n");
 
-            // no es mi turno para apostar
             esmiTurno = false;
             faseApuestas = false;
 
-            // verifico si hay mas jugadores
             try {
                 int totalJugadores = controlador.getCantidadJugadoresConectados();
                 if (totalJugadores > 1) {
@@ -477,9 +552,7 @@ public class consolaGrafica implements IVista {
         }
     }
 
-    // ============================================================
-    // DECISIONES DE JUEGO
-    // ============================================================
+    // decisiones
 
     private void procesarDecisionJugador(String decision) throws RemoteException {
         switch (decision) {
@@ -503,9 +576,15 @@ public class consolaGrafica implements IVista {
                 accionDividir();
                 break;
 
+            // El comando SEGURO ya NO es válido durante el turno de juego.
+            // El seguro se ofrece automáticamente antes de que empiece el turno
+            // a través del evento OFRECER_SEGURO → ofrecerSeguro().
+            // Si el jugador intenta escribirlo igual, se le explica.
             case "seguro":
-            case "s":
-                accionSeguro();
+                mostrarMensaje("El seguro se ofrece automáticamente antes de tu turno\n");
+                mostrarMensaje("cuando el crupier muestra un As. No podés activarlo manualmente.\n\n");
+                mostrarMensaje("PEDIR | PLANTAR | DOBLAR | DIVIDIR | AYUDA\n");
+                mostrarMensaje("Decisión: ");
                 break;
 
             case "ayuda":
@@ -552,7 +631,6 @@ public class consolaGrafica implements IVista {
             }
 
         } else {
-            // muestra mano sin dividir
             mostrarManoActualizada();
             int puntaje = controlador.getPuntajeMano();
 
@@ -581,16 +659,12 @@ public class consolaGrafica implements IVista {
 
         mostrarMensaje("[!] Te plantaste con " + puntaje + " puntos!\n");
 
-        // verifico si hay mano 2 pendiente
         List<Mano> manos = controlador.getManosJugador();
         int manoActualIndex = controlador.getManoActualIndex();
 
         if (manos.size() > 1 && manoActualIndex == 0) {
-            // HAY mano 2 pendiente - NO resetear estados
             mostrarMensaje("Mano 1 plantada. Esperando mano 2...\n");
-            // NO cambiar esmiTurno, faseJuego, esperandoDecision
         } else {
-            // NO hay más manos - resetear estados
             mostrarMensaje("Esperando a los demas jugadores...\n");
             esmiTurno = false;
             esperandoDecision = false;
@@ -616,14 +690,11 @@ public class consolaGrafica implements IVista {
             return;
         }
 
-        // apuesta de la mano actual
         float apuesta;
 
         if (controlador.jugadorDividio() && controlador.manoAUsar() == 1) {
-            // Si estamos en mano 2, usar apuesta de mano 2
             apuesta = controlador.getApuestaJugadorMano2();
         } else {
-            // Si estamos en mano 1 o no hay división, usar apuesta normal
             apuesta = controlador.getApuestaJugador();
         }
 
@@ -638,11 +709,9 @@ public class consolaGrafica implements IVista {
         mostrarMensaje("[LOG] CONTROLADOR.JUGADORDOBLOMANO()...");
         controlador.jugadorDobloMano();
 
-        // le doy tiempo al rmi para que sincronice los datos
         try {
             Thread.sleep(100);
         } catch (InterruptedException e) {
-
         }
 
         float apuestaDespues = controlador.getApuestaJugador();
@@ -656,7 +725,6 @@ public class consolaGrafica implements IVista {
         mostrarManoActualizada();
         controlador.plantarse();
 
-        // solo resetear estados si NO hay división pendiente
         if (!controlador.jugadorDividio() || controlador.getManosJugador().size() <= 1) {
             esmiTurno = false;
             esperandoDecision = false;
@@ -691,46 +759,23 @@ public class consolaGrafica implements IVista {
         mostrarManosDivididasJugadorVista();
     }
 
-    private void accionSeguro() throws RemoteException {
-        if (!controlador.getCrupierTieneAsPrimera()) {
-            mostrarMensaje("El seguro solo está disponible si el crupier muestra un AS.\n");
-            return;
-        }
-
-        float costoSeguro = controlador.getApuestaJugador() / 2;
-        float saldo = controlador.getSaldoJugadorActual();
-
-        if (saldo < costoSeguro) {
-            mostrarMensaje("Saldo insuficiente para el seguro.\n");
-            return;
-        }
-
-        // controlador.setPagoSeguroJugador(true);
-        controlador.retirarSaldoJugador(controlador.getApuestaJugador()/2);
-        mostrarMensaje("\nPagaste el seguro: $" + String.format("%.0f", costoSeguro) + "\n");
-        mostrarMensaje("Si el crupier tiene Blackjack, recuperas tu apuesta.\n\n");
-
-        notificarTurnoJugador();
-    }
-
     private void mostrarAyudaJuego() {
         mostrarMensaje("\nComandos disponibles:\n");
-        mostrarMensaje("COMENZAR (C) - Comenzar Partida\n");
-        mostrarMensaje("PEDIR (P) - Pedir carta\n");
-        mostrarMensaje("PLANTAR (PL) - Plantarse\n");
-        mostrarMensaje("DOBLAR (D) - Doblar apuesta\n");
-        mostrarMensaje("DIVIDIR (DIV) - Dividir mano\n");
-        mostrarMensaje("SEGURO (S) - Pagar seguro\n");
-        mostrarMensaje("AYUDA - Ver comandos\n\n");
-
-        mostrarMensaje("RECARGAR <monto> - Recargar saldo\n");
-        mostrarMensaje("SALDO - Ver el saldo actual\n");
+        mostrarMensaje("COMENZAR (C)       - Comenzar Partida\n");
+        mostrarMensaje("PEDIR (P)          - Pedir carta\n");
+        mostrarMensaje("PLANTAR (PL)       - Plantarse\n");
+        mostrarMensaje("DOBLAR (D)         - Doblar apuesta\n");
+        mostrarMensaje("DIVIDIR (DIV)      - Dividir mano\n");
+        mostrarMensaje("RECARGAR <monto>   - Recargar saldo\n");
+        mostrarMensaje("SALDO              - Ver el saldo actual\n");
+        mostrarMensaje("AYUDA              - Ver comandos\n\n");
+        mostrarMensaje("* El SEGURO se ofrece automáticamente cuando\n");
+        mostrarMensaje("  el crupier muestra un As. No es un comando manual.\n\n");
     }
 
     // mostrar cartas
 
     private void mostrarManoActualizada() throws RemoteException {
-        // ESTO TRAE SOLO LA PRIMERA MANO. NO LA SEGUNDA SI ES QUE SE DIVIDE
         List<Carta> cartas = controlador.getCartasMano();
         int puntaje = controlador.getPuntajeMano();
 
@@ -807,11 +852,9 @@ public class consolaGrafica implements IVista {
             juegoComenzado = true;
             enSalaEspera = false;
 
-            // reseteo las flags para que la votacion aparezca cada vez que se termina la partida
-            // cada vez que se inicia la votación, este metodo se llama a través del controlador usando el evento
-            // NUEVA_PARTIDA_INICIADA
             votacionMostrada = false;
             enVotacion = false;
+            esperandoRespuestaSeguro = false; // resetear seguro también
 
             mostrarMensaje("\n" + linea(40) + "\n");
             mostrarMensaje("PARTIDA INICIADA!\n");
@@ -823,7 +866,6 @@ public class consolaGrafica implements IVista {
     @Override
     public void notificarTurnoApuesta() {
         SwingUtilities.invokeLater(() -> {
-            // IMPORTANTE: Solo cambiar estado si NO estoy en fase de juego
             if (!faseJuego) {
                 esmiTurno = true;
                 faseApuestas = true;
@@ -848,9 +890,11 @@ public class consolaGrafica implements IVista {
             faseApuestas = false;
             faseJuego = true;
             esperandoDecision = true;
+
             mostrarMensaje(linea(40) + "\n");
             mostrarMensaje("ES TU TURNO - DECIDIS QUE HACER CON TU MANO\n");
             mostrarMensaje(linea(40) + "\n");
+
             // Carta del crupier
             String cartaCrupier = null;
             try {
@@ -858,6 +902,7 @@ public class consolaGrafica implements IVista {
             } catch (RemoteException e) {
             }
             mostrarMensaje("Crupier: " + cartaCrupier + " + [NO REVELADO]\n\n");
+
             // Tus cartas
             List<Carta> cartas = null;
             try {
@@ -888,31 +933,15 @@ public class consolaGrafica implements IVista {
                     mostrarMensaje("BLACKJACK!!\n\n");
                     esmiTurno = false;
                     esperandoDecision = false;
-                    controlador.cambiarTurnoJugador(); // si se consigue BJ, avanza el turno automaticamente.
+                    controlador.cambiarTurnoJugador();
                     return;
                 }
             } catch (RemoteException e) {
                 throw new RuntimeException(e);
             }
-            // Verificar seguro
-            boolean puedeSeguro = false;
-            try {
-                puedeSeguro = controlador.getCrupierTieneAsPrimera();
-            } catch (RemoteException e) {
-                puedeSeguro = false;
-            }
-            if (puedeSeguro) {
-                float costoSeguro = 0;
-                try {
-                    costoSeguro = controlador.getApuestaJugador() / 2;
-                } catch (RemoteException e) {
-                    throw new RuntimeException(e);
-                }
-                mostrarMensaje("El crupier muestra un As.\n");
-                mostrarMensaje("Podes pagar el SEGURO con un valor de: " + costoSeguro + ".\n\n");
-                mostrarMensaje("PEDIR | PLANTAR | DOBLAR | DIVIDIR | SEGURO | AYUDA\n");
-            }
-            else mostrarMensaje("PEDIR | PLANTAR | DOBLAR | DIVIDIR | AYUDA\n");
+            // el seguro para esta instancia ya fue preguntado por lo que se sigue el
+            // flujo normal
+            mostrarMensaje("PEDIR | PLANTAR | DOBLAR | DIVIDIR | AYUDA\n");
             mostrarMensaje("Decisión: ");
         });
     }
@@ -949,7 +978,6 @@ public class consolaGrafica implements IVista {
                 mostrarMensaje("MANOS DIVIDIDAS\n");
                 mostrarMensaje(linea(50) + "\n\n");
 
-                // MANO 1
                 mostrarMensaje("--- MANO 1 ---\n");
                 Mano mano1 = manos.get(0);
                 for (Carta carta : mano1.getMano()) {
@@ -957,7 +985,6 @@ public class consolaGrafica implements IVista {
                 }
                 mostrarMensaje("Puntaje: " + mano1.getPuntaje() + "\n\n");
 
-                // MANO 2
                 mostrarMensaje("--- MANO 2 ---\n");
                 Mano mano2 = manos.get(1);
                 for (Carta carta : mano2.getMano()) {
@@ -985,8 +1012,17 @@ public class consolaGrafica implements IVista {
 
     @Override
     public void mostrarPuntuacionParcialCrupier() throws RemoteException {
-        int puntaje = controlador.getManoCrupier().getFirst().getValorNumerico();
-        mostrarMensaje("Puntaje crupier: " + puntaje + "\n");
+        if (controlador.getManoCrupier().size() > 2){
+            int puntaje = 0;
+            for (int i = 0; i < controlador.getManoCrupier().size(); i++){
+                puntaje += controlador.getManoCrupier().get(i).getValorNumerico();
+            }
+            mostrarMensaje("Puntaje crupier: " + puntaje + "\n");
+        }
+        if (controlador.getManoCrupier().size() == 2){
+            int puntaje = controlador.getManoCrupier().getFirst().getValorNumerico();
+            mostrarMensaje("Puntaje crupier: " + puntaje + "\n");
+        }
     }
 
     @Override
@@ -1006,13 +1042,11 @@ public class consolaGrafica implements IVista {
                 mostrarMensaje("RESULTADOS FINALES\n");
                 mostrarMensaje(linea(50) + "\n\n");
 
-                // datos
                 String miNombre = controlador.getNickname();
                 float miSaldo = controlador.getSaldoJugadorActual();
                 int puntajeCrupier = controlador.getPuntajeCrupier();
                 List<Carta> cartasCrupier = controlador.getCrupier().getManoCarta();
 
-                // MANO DEL CRUPIER
                 mostrarMensaje(linea(20) + "\n");
                 mostrarMensaje("||" + "MANO DEL CRUPIER"+" ||\n");
                 mostrarMensaje(linea(20) + "\n");
@@ -1031,22 +1065,17 @@ public class consolaGrafica implements IVista {
                 }
                 mostrarMensaje("\n");
 
-                // verifico si tengo manos divididas
                 List<Mano> misManos = controlador.getManosJugador();
                 boolean tengoDividido = misManos.size() > 1;
 
                 if (tengoDividido) {
-                    // MANOS DIVIDIDAS
                     mostrarResultadosManosDivididas(miNombre, puntajeCrupier, misManos);
                 } else {
-                    // MANO SIMPLE
                     mostrarResultadoManoSimple(miNombre, puntajeCrupier);
                 }
 
-                // SALDO ACTUALIZADO
                 mostrarMensaje("Saldo actual: $" + String.format("%.2f", miSaldo) + "\n\n");
 
-                // Resetear estados
                 faseJuego = false;
                 esperandoDecision = false;
                 esmiTurno = false;
@@ -1074,7 +1103,6 @@ public class consolaGrafica implements IVista {
 
         mostrarMensaje("\n  Puntaje: " + miPuntaje);
 
-        // Verificar Blackjack
         if (miPuntaje == 21 && misCartas.size() == 2) {
             mostrarMensaje("\nBLACKJACK\n\n");
             mostrarMensaje(linea(50) + "\n");
@@ -1083,7 +1111,6 @@ public class consolaGrafica implements IVista {
             return;
         }
 
-        // Evaluación normal
         mostrarMensaje("\n\n");
         mostrarMensaje(linea(50) + "\n");
 
@@ -1111,7 +1138,6 @@ public class consolaGrafica implements IVista {
         mostrarMensaje("||" + "      TUS MANOS (" + nombre + ")"      +" ||\n");
         mostrarMensaje(linea(40) + "\n");
 
-        // Mano 1
         mostrarMensaje("--- MANO 1 ---\n");
         int puntajeMano1 = controlador.getPuntajeManosIndices(0);
         List<Carta> cartasMano1 = manos.get(0).getMano();
@@ -1122,7 +1148,6 @@ public class consolaGrafica implements IVista {
         mostrarMensaje("Puntaje: " + puntajeMano1 + "\n");
         mostrarMensaje("Resultado: " + evaluarMano(puntajeMano1, puntajeCrupier) + "\n\n");
 
-        // Mano 2
         mostrarMensaje("--- MANO 2 ---\n");
         int puntajeMano2 = controlador.getPuntajeManosIndices(1);
         List<Carta> cartasMano2 = manos.get(1).getMano();
@@ -1206,13 +1231,11 @@ public class consolaGrafica implements IVista {
                 mostrarMensaje("Puntaje: " + puntaje + "\n");
                 mostrarMensaje("Te plantas automáticamente.\n\n");
 
-                // verifico si dividió Y tiene mas de una mano
                 List<Mano> manos = controlador.getManosJugador();
                 boolean dividio = controlador.jugadorDividio();
 
                 if (dividio && manos.size() > 1) {
                     mostrarMensaje("Mano 1 llegó a 21. Esperando mano 2...\n");
-                    // NO resetear estados
                 } else {
                     mostrarMensaje("Esperando a los demás jugadores...\n");
                     esmiTurno = false;
@@ -1235,16 +1258,13 @@ public class consolaGrafica implements IVista {
                 mostrarMensaje("Puntaje final: " + puntaje + "\n");
                 mostrarMensaje("Perdiste esta mano :(\n\n");
 
-                // verifico si dividió Y tiene múltiples manos
                 List<Mano> manos = controlador.getManosJugador();
                 boolean dividio = controlador.jugadorDividio();
 
-                // si dividió y tiene 2 manos, significa que hay mano 2 pendiente todavia
                 if (dividio && manos.size() > 1) {
                     mostrarMensaje("Mano 1 se pasó. Esperando mano 2...\n");
 
                 } else {
-                    // NO hay más manos - resetear estados
                     mostrarMensaje("Esperando a los demás jugadores...\n");
 
                     esmiTurno = false;
@@ -1262,7 +1282,6 @@ public class consolaGrafica implements IVista {
     public void cambiarAMano2() {
         SwingUtilities.invokeLater(() -> {
             try {
-                // los estados siguen activos
                 esmiTurno = true;
                 faseJuego = true;
                 esperandoDecision = true;

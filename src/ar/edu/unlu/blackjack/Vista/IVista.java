@@ -35,4 +35,6 @@ public interface IVista {
 
     void cambiarAMano2() throws RemoteException;
 
+    void ofrecerSeguro() throws RemoteException;
+
 }

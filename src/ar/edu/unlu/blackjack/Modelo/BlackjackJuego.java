@@ -21,6 +21,14 @@ public class BlackjackJuego extends ObservableRemoto implements IBlackjackJuego 
     // sistema de votacion para seguir la partida
     private Map<String, Boolean> votosNuevaPartida = new HashMap<>();
 
+    // ==================== SEGURO ====================
+    /**
+     * Conjunto de nicknames que aún no respondieron la oferta de seguro.
+     * Se puebla en realizarApuesta() luego de repartir cartas iniciales,
+     * cuando se detecta que el crupier muestra un As.
+     */
+    private Set<String> jugadoresPendientesSeguro = new HashSet<>();
+
     private final AdministradorJugadorMasGanador administradorRanking;
 
     public BlackjackJuego() {
@@ -141,6 +149,18 @@ public class BlackjackJuego extends ObservableRemoto implements IBlackjackJuego 
             notificarObservadores(Evento.MOSTRAR_MANO_CRUPIER);
 
             setIndiceJugador(0);
+
+            // ==================== SEGURO ====================
+            // Si el crupier muestra un As como primera carta visible,
+            // ofrecemos el seguro a todos los jugadores antes de continuar.
+            if (crupierMuestraAs()) {
+                iniciarFaseSeguro();
+                // La fase de juego continuará en continuarDespuesDeSeguro()
+                // una vez que todos los jugadores hayan respondido.
+                return true;
+            }
+            // ================================================
+
             for (int i = 0; i < jugadores.size(); i++) {
                 if (jugadores.get(i).tieneBlackjack()) jugadorSePlanta();
             }
@@ -153,6 +173,81 @@ public class BlackjackJuego extends ObservableRemoto implements IBlackjackJuego 
 
         return true;
     }
+
+    // metodos de seguro de bj
+
+    @Override
+    public boolean crupierMuestraAs() throws RemoteException {
+        List<Carta> cartasCrupier = crupier.getManoActual().getMano();
+        if (cartasCrupier == null || cartasCrupier.isEmpty()) return false;
+        Carta cartaVisible = cartasCrupier.get(0);
+        return cartaVisible.getValor().equalsIgnoreCase("A");
+    }
+
+    private void iniciarFaseSeguro() throws RemoteException {
+        jugadoresPendientesSeguro.clear();
+        for (Jugador j : jugadores) {
+            if (j.getActivo()) {
+                jugadoresPendientesSeguro.add(j.getNombre());
+            }
+        }
+        setIndiceJugador(0); // volver al primer jugador para que responda
+        notificarObservadores(Evento.OFRECER_SEGURO);
+    }
+
+    @Override
+    public boolean pagarSeguro(String nickname) throws RemoteException {
+        Jugador jugador = getJugadorPorNickname(nickname);
+        if (jugador == null) return false;
+
+        float montoSeguro = jugador.getApuesta() / 2f;
+        if (jugador.getSaldo() < montoSeguro) return false;
+
+        jugador.ajustarSaldo(-montoSeguro);
+        // jugador.setMontoSeguro(montoSeguro);
+        jugador.setPagoSeguro(true);
+
+        jugadoresPendientesSeguro.remove(nickname);
+        verificarFinFaseSeguro();
+        return true;
+    }
+
+    @Override
+    public void rechazarSeguro(String nickname) throws RemoteException {
+        jugadoresPendientesSeguro.remove(nickname);
+        verificarFinFaseSeguro();
+    }
+
+
+    private void verificarFinFaseSeguro() throws RemoteException {
+        if (jugadoresPendientesSeguro.isEmpty()) {
+            continuarDespuesDeSeguro();
+        }
+    }
+
+    @Override
+    public boolean hayJugadoresPendientesDeSeguro() throws RemoteException {
+        return !jugadoresPendientesSeguro.isEmpty();
+    }
+
+    private void continuarDespuesDeSeguro() throws RemoteException {
+        setIndiceJugador(0);
+        for (int i = 0; i < jugadores.size(); i++) {
+            if (jugadores.get(i).tieneBlackjack()) jugadorSePlanta();
+        }
+        notificarObservadores(Evento.NOTIFICAR_TURNO_JUGADOR);
+    }
+
+    @Override
+    public void pagarGananciaSeguro(Jugador jugador) throws RemoteException {
+        if (!jugador.getPagoSeguro()) return;
+        float ganancia = jugador.getApuesta() * 3f; // devuelve lo apostado x3 (seguro + ganancia)
+        jugador.ajustarSaldo(ganancia);
+        notificarObservadores(Evento.GANANCIA_SEGURO_PAGADA);
+    }
+
+    // ================================================================
+
     /**
      * Configura un nuevo jugador en el juego
      *
@@ -228,6 +323,10 @@ public class BlackjackJuego extends ObservableRemoto implements IBlackjackJuego 
 
         // iniciar fase de apuestas con el primer jugador
         setIndiceJugador(0);
+
+        // limpiar estado de seguro para la nueva partida
+        jugadoresPendientesSeguro.clear();
+
         notificarObservadores(Evento.NOTIFICAR_TURNO_APUESTA);
     }
 
@@ -269,8 +368,9 @@ public class BlackjackJuego extends ObservableRemoto implements IBlackjackJuego 
                     notificarObservadores(Evento.CRUPIER_BLACKJACK_Y_EMPATE);
                     devolverApuesta(jugador, jugador.getApuesta());
                 }else if (jugador.getPagoSeguro()){
+                    // El seguro cubre la pérdida: se paga la ganancia del seguro
+                    pagarGananciaSeguro(jugador);
                     notificarObservadores(Evento.DEVUELTO_POR_SEGURO);
-                    devolverApuesta(jugador, jugador.getApuesta());
                 }else{
                     notificarObservadores(Evento.PERDIO_JUGADOR);
                 }
@@ -287,14 +387,13 @@ public class BlackjackJuego extends ObservableRemoto implements IBlackjackJuego 
                     notificarObservadores(Evento.CRUPIER_BLACKJACK_Y_EMPATE);
                     devolverApuesta(jugador, jugador.getApuesta());
                 }else if (jugador.getPagoSeguro()){
+                    // El seguro cubre la pérdida: se paga la ganancia del seguro
+                    pagarGananciaSeguro(jugador);
                     notificarObservadores(Evento.DEVUELTO_POR_SEGURO);
-                    devolverApuesta(jugador, jugador.getApuesta());
                 }else{
                     notificarObservadores(Evento.PERDIO_JUGADOR);
                 }
             }
-
-            // notificarObservadores(Evento.PUNTUACION_FINAL_JUGADOR);
         }
     }
 
@@ -305,6 +404,9 @@ public class BlackjackJuego extends ObservableRemoto implements IBlackjackJuego 
             Jugador jugador = jugadores.get(i);
 
             indiceJugador = i;
+
+            // Si pagó el seguro y el crupier NO tiene BJ, pierde el seguro.
+            // No hay acción extra: el dinero ya fue descontado al aceptar el seguro.
 
             if (jugador.multiplesManos()) {
                 // MANO 1
@@ -342,7 +444,6 @@ public class BlackjackJuego extends ObservableRemoto implements IBlackjackJuego 
             } else {
                 // MANO SIMPLE
                 int puntajeMano1 = jugador.getManoActual().getPuntaje();
-                // notificarObservadores(Evento.PUNTUACION_FINAL_JUGADOR);
 
                 if (jugador.getManoActual().sePaso21()) {
                     notificarObservadores(Evento.PERDIO_JUGADOR);
@@ -671,6 +772,8 @@ public class BlackjackJuego extends ObservableRemoto implements IBlackjackJuego 
         faseApuestas = true;
         setIndiceJugador(0);
         manoActualIndex = 0;
+        jugadoresPendientesSeguro.clear();
+
         // Crear nuevo mazo
         this.mazo = new Mazo();
         mazo.barajar();

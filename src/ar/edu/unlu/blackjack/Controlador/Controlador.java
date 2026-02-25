@@ -41,7 +41,7 @@ public class Controlador implements IControladorRemoto {
 
     public boolean jugadorActualTieneAs() throws RemoteException {;
         // return modelo.getJugadorActualTurno().getManoActual().tieneAs();
-        return jugadorActual.getManoActual().tieneAs();
+        return modelo.getJugadorPorNickname(nickname).getManoActual().tieneAs();
     }
 
     public int getPuntajeMano() throws RemoteException {
@@ -198,6 +198,14 @@ public class Controlador implements IControladorRemoto {
         return modelo.obtenerRankingTotal();
     }
 
+    public boolean aceptarSeguro() throws RemoteException {
+        return modelo.pagarSeguro(jugadorActual.getNombre());
+    }
+
+    public void rechazarSeguro() throws RemoteException {
+        modelo.rechazarSeguro(jugadorActual.getNombre());
+    }
+
     // ===========================================================
 
     /**
@@ -219,23 +227,21 @@ public class Controlador implements IControladorRemoto {
     public void actualizar(IObservableRemoto iObservableRemoto, Object o) throws RemoteException {
         if (o instanceof Evento){
             switch((Evento) o){
-                case BLACKJACK:
-                    if (modelo.getJugadorActualTurno().getNombre().equals(jugadorActual.getNombre())) this.vista.mostrarMensaje("Felicitaciones, obtuviste un BJ!");
-                    break;
                 case EMPATO_JUGADOR:
                     this.vista.mostrarMensaje("Empataste con el crupier. Se te devolvió el monto apostado.\n");
                     break;
                 case JUGADOR_APOSTO:
                     this.vista.mostrarMensaje("Apostaste el monto de " + String.format("%.2f", this.getApuestaJugador()) + "\n");
                     break;
-                case SALDO_AGREGADO:
-                    this.vista.mostrarMensaje("Se te agregó saldo a tu cuenta! " + this.getApuestaJugador()*2 + "\n");
-                    break;
                 case SALDO_AGREGADO_EMPATE:
                     this.vista.mostrarMensaje("Se te devolvió el monto apostado! ($" + this.getApuestaJugador() + ")\n");
                     break;
-                case JUGADOR_PAGO_SEGURO:
-                    this.vista.mostrarMensaje("Pagaste el seguro de Blackjack! (" + this.getApuestaJugador()/2 + ")\n");
+                case OFRECER_SEGURO:
+                    this.vista.ofrecerSeguro();
+                    break;
+                case GANANCIA_SEGURO_PAGADA:
+                    vista.mostrarMensaje("¡Ganaste el seguro! Crupier tenía Blackjack.");
+                    vista.mostrarCartasJugador();
                     break;
                 case CRUPIER_BLACKJACK_Y_EMPATE:
                     this.vista.mostrarMensaje("Como ambos tuvieron Blackjack, se te concedió el empate! Se te devolvió el monto apostado.\n");
@@ -248,12 +254,6 @@ public class Controlador implements IControladorRemoto {
                 case GANADOR_JUGADOR:
                     this.vista.mostrarMensaje("Felicidades " + this.getNickname() + " ganaste!\n");
                     break;
-                case MANO_FINALIZADA:
-                    this.vista.mostrarMensaje("Mano de finalizada\n");
-                    break;
-                case PUNTUACION_PARCIAL_JUGADOR:
-                    this.vista.mostrarPuntuacionParcial();
-                    break;
                 case PUNTUACION_FINAL_CRUPIER:
                     this.vista.mostrarMensaje("El puntaje final del crupier es: " + this.getPuntajeCrupier() + "\n");
                     break;
@@ -265,9 +265,6 @@ public class Controlador implements IControladorRemoto {
                     break;
                 case APUESTA_AMBAS_MANOS:
                     this.vista.mostrarMensaje(this.nickname + ": tu apuesta para ambas manos son -> Mano 1 (" + this.getApuestaJugador() + ") -> Mano 2 (" + this.getApuestaJugadorMano2() + ").\n");
-                    break;
-                case CRUPIER_TIENE_AS:
-                    this.vista.mostrarMensaje("El crupier tiene As de primera. Ingrese '1' para pagar el seguro o '0' para no hacerlo. \n");
                     break;
                 case CRUPIER_SE_PASO:
                     this.vista.mostrarMensaje("El crupier se pasó de los 21.\n");
@@ -355,9 +352,6 @@ public class Controlador implements IControladorRemoto {
                     vista.mostrarMensaje("\n===== JUEGO TERMINADO =====\n");
                     vista.mostrarMensaje("Todos los jugadores salieron.\n");
                     vista.mostrarMensaje("Gracias por jugar!\n");
-                    break;
-                case SALDO_RECARGADO:
-                    this.vista.mostrarMensaje("[!] El monto fue actualizado.\nSaldo actual actualizado: $" + jugadorActual.getSaldo());
                     break;
                 case PARTIDA_FINALIZADA:
                     vista.mostrarResultados();

@@ -5,12 +5,9 @@ import ar.edu.unlu.blackjack.Modelo.Carta;
 import ar.edu.unlu.blackjack.Modelo.Mano;
 import ar.edu.unlu.blackjack.Vista.IVista;
 
-import javax.imageio.ImageIO;
 import javax.swing.*;
 import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.*;
-import java.awt.image.BufferedImage;
-import java.io.File;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.List;
@@ -21,8 +18,6 @@ public class interfazGrafica extends JFrame implements IVista {
 
     private JPanel panelPrincipal;
     private panelMesa panelMesa;
-    private JPanel panelBotones;
-    private JPanel panelInfo;
 
     private JButton btnPedir;
     private JButton btnPlantar;
@@ -90,11 +85,9 @@ public class interfazGrafica extends JFrame implements IVista {
         panelMesa = new panelMesa(cartasJugador, cartasCrupier, cartasMano2, crupierCartaOculta);
         panelPrincipal.add(panelMesa, BorderLayout.CENTER);
 
-        panelInfo = crearPanelInfo();
-        panelPrincipal.add(panelInfo, BorderLayout.NORTH);
+        panelPrincipal.add(crearPanelInfo(), BorderLayout.NORTH);
 
-        panelBotones = crearPanelBotones();
-        panelPrincipal.add(panelBotones, BorderLayout.SOUTH);
+        panelPrincipal.add(crearPanelBotones(), BorderLayout.SOUTH);
 
         setContentPane(panelPrincipal);
     }
@@ -410,14 +403,10 @@ public class interfazGrafica extends JFrame implements IVista {
         try {
             float saldoActual = controlador.getSaldoJugadorActual();
 
-            String montoStr = JOptionPane.showInputDialog(this,
-                    "Saldo actual: $" + String.format("%.2f", saldoActual) +
-                            "\n\nIngresa el monto a recargar:",
-                    "Recargar Saldo",
-                    JOptionPane.QUESTION_MESSAGE);
+            String montoStr = JOptionPane.showInputDialog(this, "Saldo actual: $" + String.format("%.2f", saldoActual) + "\n\nIngresa el monto a recargar:", "Recargar Saldo", JOptionPane.QUESTION_MESSAGE);
 
             if (montoStr == null || montoStr.trim().isEmpty()) {
-                return; // Usuario canceló
+                return; // el usuario apreto en cancelar
             }
 
             float monto = Float.parseFloat(montoStr);
@@ -432,7 +421,7 @@ public class interfazGrafica extends JFrame implements IVista {
             if (exito) {
                 float saldoDespues = controlador.getSaldoJugadorActual();
 
-                lblSaldo.setText("Saldo: $" + String.format("%.0f", saldoDespues));
+                lblSaldo.setText("Saldo: $" + String.format("%.2f", saldoDespues));
 
                 String mensaje = "Recarga exitosa!\n\n";
 
@@ -481,8 +470,8 @@ public class interfazGrafica extends JFrame implements IVista {
             boolean apuestaExitosa = controlador.cargarApuestaJugador(String.valueOf(monto));
 
             if (apuestaExitosa) {
-                lblApuesta.setText("Apuesta: $" + String.format("%.0f", monto));
-                lblSaldo.setText("Saldo: $" + String.format("%.0f", controlador.getSaldoJugadorActual()));
+                lblApuesta.setText("Apuesta: $" + String.format("%.2f", monto));
+                lblSaldo.setText("Saldo: $" + String.format("%.2f", controlador.getSaldoJugadorActual()));
 
                 // Marcar que ya aposté y deshabilitar botón
                 yaAposte = true;
@@ -554,8 +543,8 @@ public class interfazGrafica extends JFrame implements IVista {
     private void actualizarInfo() {
         SwingUtilities.invokeLater(() -> {
             try {
-                lblSaldo.setText("Saldo: $" + String.format("%.0f", controlador.getSaldoJugadorActual()));
-                lblApuesta.setText("Apuesta: $" + String.format("%.0f", controlador.getApuestaJugador()));
+                lblSaldo.setText("Saldo: $" + String.format("%.2f", controlador.getSaldoJugadorActual()));
+                lblApuesta.setText("Apuesta: $" + String.format("%.2f", controlador.getApuestaJugador()));
                 actualizarPuntajes();
             } catch (RemoteException e) {
                 e.printStackTrace();
@@ -636,7 +625,7 @@ public class interfazGrafica extends JFrame implements IVista {
             }
 
             saldoTemporal = saldo;
-            lblSaldo.setText("Saldo: $" + String.format("%.0f", saldo));
+            lblSaldo.setText("Saldo: $" + String.format("%.2f", saldo));
 
             controlador.configurarJugadores(nicknameTemporal, saldoTemporal);
 
@@ -827,8 +816,7 @@ public class interfazGrafica extends JFrame implements IVista {
 
             try {
                 float saldo = controlador.getSaldoJugadorActual();
-                String mensaje = "Queres jugar otra partida?\n\nSaldo: $" +
-                        String.format("%.2f", saldo);
+                String mensaje = "Queres jugar otra partida?\n\nSaldo: $" + String.format("%.2f", saldo);
 
                 if (saldo == 0) {
                     mensaje += "\n\nSin saldo!";
@@ -893,6 +881,71 @@ public class interfazGrafica extends JFrame implements IVista {
             habilitarBotonesJuego();
             actualizarEstado("MANO 2");
             actualizarCartas();
+        });
+    }
+
+    @Override
+    public void ofrecerSeguro() {
+        SwingUtilities.invokeLater(() -> {
+            try {
+                float apuesta = controlador.getApuestaJugador();
+                float montoSeguro = apuesta / 2f;
+                float saldo = controlador.getSaldoJugadorActual();
+
+                // Armar el mensaje informativo
+                String mensaje;
+                boolean puedePagar = saldo >= montoSeguro;
+
+                if (puedePagar) {
+                    mensaje = "El crupier tiene un AS!\n\n" +
+                            "Podés pagar un SEGURO por: $" + String.format("%.2f", montoSeguro) +
+                            "\n\nTu saldo actual: $" + String.format("%.2f", saldo);
+                } else {
+                    mensaje = "El crupier tiene un AS!\n\n" + "No tenés saldo suficiente para pagar el seguro.\n" + "(el seguro es la mitad de la apuesta)";
+                }
+
+                if (puedePagar) {
+                    Object[] opciones = {"PAGAR SEGURO ($" + String.format("%.2f", montoSeguro) + ")", "NO PAGAR"};
+                    int respuesta = JOptionPane.showOptionDialog(
+                            this,
+                            mensaje,
+                            "Oferta de Seguro",
+                            JOptionPane.YES_NO_OPTION,
+                            JOptionPane.WARNING_MESSAGE,
+                            null,
+                            opciones,
+                            opciones[1]
+                    );
+
+                    if (respuesta == JOptionPane.YES_OPTION) {
+                        boolean exito = controlador.aceptarSeguro();
+                        if (exito) {
+                            actualizarEstado("Seguro contratado - $" + String.format("%.2f", montoSeguro));
+                            actualizarInfo(); // refrescar saldo en pantalla
+                        } else {
+                            mostrarError("No se pudo procesar el seguro (saldo insuficiente).");
+                            controlador.rechazarSeguro();
+                        }
+                    } else {
+                        controlador.rechazarSeguro();
+                        actualizarEstado("Seguro rechazado");
+                    }
+                } else {
+                    // No puede pagar
+                    JOptionPane.showMessageDialog(this, mensaje, "Oferta de Seguro", JOptionPane.INFORMATION_MESSAGE);
+                    controlador.rechazarSeguro();
+                    actualizarEstado("Sin saldo para el seguro");
+                }
+
+            } catch (RemoteException e) {
+                mostrarError("Error al procesar la oferta de seguro: " + e.getMessage());
+                // Intentamos registrar el rechazo para no bloquear la partida
+                try {
+                    controlador.rechazarSeguro();
+                } catch (RemoteException ex) {
+                    ex.printStackTrace();
+                }
+            }
         });
     }
 

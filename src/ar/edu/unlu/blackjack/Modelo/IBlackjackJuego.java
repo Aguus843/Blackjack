@@ -80,4 +80,13 @@ public interface IBlackjackJuego extends IObservableRemoto {
 
     String obtenerRankingTotal() throws RemoteException;
 
+    boolean crupierMuestraAs() throws RemoteException;
+
+    boolean pagarSeguro(String nickname) throws RemoteException;
+
+    void rechazarSeguro(String nickname) throws RemoteException;
+
+    boolean hayJugadoresPendientesDeSeguro() throws RemoteException;
+
+    void pagarGananciaSeguro(Jugador jugador) throws RemoteException;
 }
