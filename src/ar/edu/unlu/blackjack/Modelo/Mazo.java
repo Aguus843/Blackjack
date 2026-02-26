@@ -11,11 +11,11 @@ public class Mazo implements Serializable {
         cartas = new ArrayList<Carta>();
 
         String[] palos = {"Diamantes", "Tréboles", "Corazones", "Picas"};
-        // String[] valores = {"A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"};
+        String[] valores = {"A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"};
         // Tests
         // String[] valores = {"A", "J", "10", "K", "Q"};
         // String[] valores = {"A", "2", "3", "4", "5"};
-        String[] valores = {"A", "K", "K"};
+        // String[] valores = {"A", "K", "K"};
 
         // Inicializo las cartas con sus valores
         for (String palo : palos) {
@@ -47,11 +47,11 @@ public class Mazo implements Serializable {
     public void reiniciarBaraja(){
         cartas.clear();
         String[] palos = {"Diamantes", "Tréboles", "Corazones", "Picas"};
-        // String[] valores = {"A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"};
+        String[] valores = {"A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"};
         // String[] valores = {"K", "K", "K"};
         // String[] valores = {"A", "K"};
         // String[] valores = {"J", "K"};
-        String[] valores = {"A", "J", "K"};
+        // String[] valores = {"A", "J", "K"};
 
         // Inicializo las cartas con sus valores
         for (String palo : palos) {

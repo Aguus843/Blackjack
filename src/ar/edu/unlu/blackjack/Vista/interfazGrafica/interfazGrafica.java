@@ -816,8 +816,7 @@ public class interfazGrafica extends JFrame implements IVista {
 
             try {
                 float saldo = controlador.getSaldoJugadorActual();
-                String mensaje = "Queres jugar otra partida?\n\nSaldo: $" +
-                        String.format("%.2f", saldo);
+                String mensaje = "Queres jugar otra partida?\n\nSaldo: $" + String.format("%.2f", saldo);
 
                 if (saldo == 0) {
                     mensaje += "\n\nSin saldo!";

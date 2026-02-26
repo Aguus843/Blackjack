@@ -240,7 +240,7 @@ public class Controlador implements IControladorRemoto {
                     this.vista.ofrecerSeguro();
                     break;
                 case GANANCIA_SEGURO_PAGADA:
-                    vista.mostrarMensaje("El seguro te devolvió la apuesta dado que el crupier tenía BJ!");
+                    vista.mostrarMensaje("[!] El seguro te devolvió la apuesta dado que el crupier tenía BJ!.");
                     vista.mostrarCartasJugador();
                     break;
                 case CRUPIER_BLACKJACK_Y_EMPATE:
