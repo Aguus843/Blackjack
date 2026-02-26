@@ -195,6 +195,7 @@ public class panelMesa extends JPanel {
                 return ImageIO.read(archivo);
             }
         } catch (Exception e) {
+            // Fallback
         }
         return null;
     }

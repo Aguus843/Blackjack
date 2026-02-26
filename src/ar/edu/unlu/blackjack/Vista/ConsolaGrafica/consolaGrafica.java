@@ -345,7 +345,7 @@ public class consolaGrafica implements IVista {
                 mostrarMensaje("Tu saldo actual: $" + String.format("%.2f", saldo) + "\n\n");
 
                 if (puedePagar) {
-                    mostrarMensaje("Escribi: SI (pagar $" + String.format("%.2f", montoSeguro) + ") | NO (no pagar seguro)\n");
+                    mostrarMensaje("Escribi: SI (pagar $" + String.format("%.2f", montoSeguro) + ") | NO (rechazar)\n");
                     mostrarMensaje("Respuesta: ");
                     esperandoRespuestaSeguro = true;
                 } else {
@@ -373,6 +373,7 @@ public class consolaGrafica implements IVista {
 
                 if (exito) {
                     mostrarMensaje("\nSeguro pagado por $" + String.format("%.2f", montoSeguro) + ".\n");
+                    mostrarMensaje("Si el crupier tiene Blackjack, recuperás tu apuesta principal.\n\n");
                 } else {
                     mostrarMensaje("\nNo podes pagar el seguro porque no tenes saldo suficiente.\n");
                     mostrarMensaje("Se te rechaza el seguro automaticamente.\n\n");
@@ -384,7 +385,7 @@ public class consolaGrafica implements IVista {
             }
 
         } else if (respuesta.equals("no") || respuesta.equals("n")) {
-            mostrarMensaje("\n[!] Seguro rechazado. La partida continúa normalmente.\n\n");
+            mostrarMensaje("\nSeguro rechazado. La partida continúa normalmente.\n\n");
             try {
                 controlador.rechazarSeguro();
             } catch (RemoteException e) {
@@ -552,7 +553,9 @@ public class consolaGrafica implements IVista {
         }
     }
 
-    // decisiones
+    // ============================================================
+    // DECISIONES DE JUEGO
+    // ============================================================
 
     private void procesarDecisionJugador(String decision) throws RemoteException {
         switch (decision) {
