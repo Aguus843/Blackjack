@@ -1,6 +1,7 @@
 package ar.edu.unlu.blackjack.Vista;
 import ar.edu.unlu.blackjack.Controlador.Controlador;
 
+import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.util.List;
 
@@ -16,7 +17,6 @@ public interface IVista {
     void notificarTurnoJugador() throws RemoteException;
     void mostrarManoJugador() throws RemoteException;
 
-    void mostrarPuntuacionParcial() throws RemoteException;
     void mostrarSalaEspera(List<String> jugadores, int maximo);
 
     void comenzarPartida() throws RemoteException;
@@ -37,4 +37,11 @@ public interface IVista {
 
     void ofrecerSeguro() throws RemoteException;
 
+    void accionPlantar() throws RemoteException;
+
+    void accionDoblar() throws RemoteException;
+
+    void accionDividir() throws RemoteException;
+
+    void accionPedir() throws RemoteException;
 }

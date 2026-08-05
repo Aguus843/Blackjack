@@ -53,10 +53,6 @@ public class Controlador implements IControladorRemoto {
         return modelo.getJugadorActualTurno().tieneBlackjack();
     }
 
-    public boolean getCrupierTieneAsPrimera() throws RemoteException {
-        return modelo.getCrupier().tieneAsPrimera();
-    }
-
     public float getSaldoJugadorActual() throws RemoteException {
         // return modelo.getSaldoJugador(nickname);
         return modelo.getJugadorPorNickname(nickname).getSaldo();
@@ -70,10 +66,6 @@ public class Controlador implements IControladorRemoto {
     public float getApuestaJugadorMano2() throws RemoteException {
         // return modelo.getJugadorActualTurno().getApuestaMano2();
         return modelo.getJugadorPorNickname(nickname).getApuestaMano2();
-    }
-
-    public void retirarSaldoJugador(float monto) throws RemoteException{
-        modelo.getJugadorActualTurno().retirarSaldo(monto);
     }
 
     public boolean getJugadorPuedeDividir() throws RemoteException {
@@ -264,7 +256,7 @@ public class Controlador implements IControladorRemoto {
                     this.vista.mostrarMensaje("Felicitaciones! Ganaste la apuesta con un BJ --> ($" + this.getApuestaJugador()*2.5 + ").\n");
                     break;
                 case APUESTA_AMBAS_MANOS:
-                    this.vista.mostrarMensaje(this.nickname + ": tu apuesta para ambas manos son -> Mano 1 (" + this.getApuestaJugador() + ") -> Mano 2 (" + this.getApuestaJugadorMano2() + ").\n");
+                    if (this.getJugadorDividio()) this.vista.mostrarMensaje(this.nickname + ": tu apuesta para ambas manos son -> Mano 1 (" + this.getApuestaJugador() + ") -> Mano 2 (" + this.getApuestaJugadorMano2() + ").\n");
                     break;
                 case CRUPIER_SE_PASO:
                     this.vista.mostrarMensaje("El crupier se pasó de los 21.\n");
@@ -294,6 +286,7 @@ public class Controlador implements IControladorRemoto {
                         this.vista.notificarTurnoJugador();
                     }
                     else{
+                        // si no es mi turno notifico de quién es el turno
                         if (!jugadorActual.getSePlanto() && !jugadorActual.getManoActual().sePaso21()) this.vista.mostrarMensaje("[!] Esperando turno de " + modelo.getJugadorActualTurno().getNombre() + "...\n");
                     }
                     break;

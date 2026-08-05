@@ -150,23 +150,25 @@ public class BlackjackJuego extends ObservableRemoto implements IBlackjackJuego 
 
             setIndiceJugador(0);
 
-            // ==================== SEGURO ====================
-            // Si el crupier muestra un As como primera carta visible,
-            // ofrecemos el seguro a todos los jugadores antes de continuar.
+            // SEGURO
+            // Si la primera carta del curpier es un As, se ofrece un seguro para cubrirse en caso de un BJ.
             if (crupierMuestraAs()) {
                 iniciarFaseSeguro();
-                // La fase de juego continuará en continuarDespuesDeSeguro()
-                // una vez que todos los jugadores hayan respondido.
+                // una vez se abona o no el seguro, se procede a hacer la vuelta de cada accion de jugador
                 return true;
             }
-            // ================================================
-
             for (int i = 0; i < jugadores.size(); i++) {
-                if (jugadores.get(i).tieneBlackjack()) jugadorSePlanta();
+                if (jugadores.get(i).tieneBlackjack()) {
+                    jugadorSePlanta();
+                    // si la partida ya termino, terminar ronda
+                    if (indiceJugador >= jugadores.size()) return true;
+                }
             }
 
-            notificarObservadores(Evento.NOTIFICAR_TURNO_JUGADOR);
-
+// Solo notificar turno si todavía hay jugadores por jugar
+            if (indiceJugador < jugadores.size()) {
+                notificarObservadores(Evento.NOTIFICAR_TURNO_JUGADOR);
+            }
         } else {
             notificarObservadores(Evento.NOTIFICAR_TURNO_APUESTA);
         }
@@ -221,21 +223,21 @@ public class BlackjackJuego extends ObservableRemoto implements IBlackjackJuego 
 
     private void verificarFinFaseSeguro() throws RemoteException {
         if (jugadoresPendientesSeguro.isEmpty()) {
-            continuarDespuesDeSeguro();
+            for (int i = 0; i < jugadores.size(); i++) {
+                if (jugadores.get(i).tieneBlackjack()) {
+                    jugadorSePlanta();
+                    if (indiceJugador >= jugadores.size()) return;
+                }
+            }
+            if (indiceJugador < jugadores.size()) {
+                notificarObservadores(Evento.NOTIFICAR_TURNO_JUGADOR);
+            }
         }
-    }
+        }
 
     @Override
     public boolean hayJugadoresPendientesDeSeguro() throws RemoteException {
         return !jugadoresPendientesSeguro.isEmpty();
-    }
-
-    private void continuarDespuesDeSeguro() throws RemoteException {
-        setIndiceJugador(0);
-        for (int i = 0; i < jugadores.size(); i++) {
-            if (jugadores.get(i).tieneBlackjack()) jugadorSePlanta();
-        }
-        notificarObservadores(Evento.NOTIFICAR_TURNO_JUGADOR);
     }
 
     @Override

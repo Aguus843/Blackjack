@@ -241,7 +241,8 @@ public class interfazGrafica extends JFrame implements IVista {
         }
     }
 
-    private void accionPedir() {
+    @Override
+    public void accionPedir() {
         if (!esmiTurno || !esperandoDecision) return;
 
         try {
@@ -252,7 +253,8 @@ public class interfazGrafica extends JFrame implements IVista {
         }
     }
 
-    private void accionPlantar() {
+    @Override
+    public void accionPlantar() {
         if (!esmiTurno || !esperandoDecision) return;
 
         try {
@@ -264,18 +266,19 @@ public class interfazGrafica extends JFrame implements IVista {
         }
     }
 
-    private void accionDoblar() {
+    @Override
+    public void accionDoblar() {
         if (!esmiTurno || !esperandoDecision) return;
 
         try {
             if (controlador.getManosJugador().size() == 2) {
                 int manoActual = controlador.manoAUsar();
                 if (controlador.getManosJugador().get(manoActual).getMano().size() != 2) {
-                    mostrarMensaje("Solo puedes doblar con 2 cartas");
+                    mostrarMensaje("Solo podes doblar con 2 cartas");
                     return;
                 }
             } else if (controlador.getCartasMano().size() != 2) {
-                mostrarMensaje("Solo puedes doblar con 2 cartas");
+                mostrarMensaje("Solo podes doblar con 2 cartas");
                 return;
             }
 
@@ -313,12 +316,13 @@ public class interfazGrafica extends JFrame implements IVista {
         }
     }
 
-    private void accionDividir() {
+    @Override
+    public void accionDividir() {
         if (!esmiTurno || !esperandoDecision) return;
 
         try {
             if (!controlador.getJugadorPuedeDividir()) {
-                mostrarMensaje("No puedes dividir esta mano");
+                mostrarMensaje("No podes dividir esta mano");
                 return;
             }
 
@@ -714,11 +718,6 @@ public class interfazGrafica extends JFrame implements IVista {
     public void mostrarManoJugador(){
         actualizarCartas();
         actualizarInfo();
-    }
-
-    @Override
-    public void mostrarPuntuacionParcial(){
-        actualizarPuntajes();
     }
 
     @Override

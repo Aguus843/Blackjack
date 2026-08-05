@@ -36,7 +36,6 @@ public class consolaGrafica implements IVista {
     // ==================== SEGURO ====================
     // true mientras el servidor espera que este jugador responda la oferta de seguro
     private boolean esperandoRespuestaSeguro = false;
-    // ================================================
 
     public consolaGrafica() {
         iniciarConsola();
@@ -603,8 +602,8 @@ public class consolaGrafica implements IVista {
         }
     }
 
-
-    private void accionPedir() throws RemoteException {
+    @Override
+    public void accionPedir() throws RemoteException {
         mostrarMensaje("[!] Pediste una carta!\n");
         controlador.pedirCarta();
         boolean dividio = (controlador.getJugadorDividio() || controlador.getManosJugador().size() > 1);
@@ -654,7 +653,8 @@ public class consolaGrafica implements IVista {
         }
     }
 
-    private void accionPlantar() throws RemoteException {
+    @Override
+    public void accionPlantar() throws RemoteException {
         int puntaje = controlador.getPuntajeMano();
 
         mostrarMensaje("[!] Te plantaste con " + puntaje + " puntos!\n");
@@ -674,7 +674,8 @@ public class consolaGrafica implements IVista {
         controlador.plantarse();
     }
 
-    private void accionDoblar() throws RemoteException {
+    @Override
+    public void accionDoblar() throws RemoteException {
         if (controlador.getManosJugador().size() == 2){
             if (controlador.getManosJugador().get(0).getMano().size() != 2 && controlador.manoAUsar() == 0){
                 mostrarMensaje("Solo podes doblar con 2 cartas en la mano 1!\n");
@@ -731,7 +732,8 @@ public class consolaGrafica implements IVista {
         }
     }
 
-    private void accionDividir() throws RemoteException {
+    @Override
+    public void accionDividir() throws RemoteException {
         if (controlador.getCartasMano().size() != 2) {
             mostrarMensaje("Solo podes dividir con 2 cartas.\n");
             return;
@@ -1002,12 +1004,6 @@ public class consolaGrafica implements IVista {
                 e.printStackTrace();
             }
         });
-    }
-
-    @Override
-    public void mostrarPuntuacionParcial() throws RemoteException {
-        int puntaje = controlador.getPuntajeMano();
-        mostrarMensaje("Tu puntaje: " + puntaje + "\n");
     }
 
     @Override
