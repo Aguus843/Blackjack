@@ -41,13 +41,6 @@ public class Crupier extends Jugador implements Serializable {
         getManos().get(0).recibirCarta(carta);
     }
 
-    public boolean tieneAsPrimera() {
-        if (getManos().isEmpty() || getManoCrupier().getMano().isEmpty()) {
-            return false;
-        }
-        return getManoCrupier().getMano().get(0).getValor().equals("A");
-    }
-
     public boolean debePedirCarta() {
         if (getManos().isEmpty()) {
             return false;

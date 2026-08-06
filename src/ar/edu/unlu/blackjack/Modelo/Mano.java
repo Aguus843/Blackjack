@@ -87,19 +87,6 @@ public class Mano implements Serializable {
         jugador.ajustarSaldo(-jugador.getApuestaMano2());
         System.out.printf("%s: tu apuesta para ambas manos son -> Mano 1 (%.2f) -> Mano 2 (%.2f).\n", jugador.getNombre(), jugador.getApuesta(), jugador.getApuestaMano2());
     }
-//    public int seguroBlackjack(Jugador jugador){
-//        int ingreso;
-//        System.out.println("El crupier tiene un As de primer carta.");
-//        System.out.printf("Ingrese '1' para pagar el seguro o '0' para no pagar el seguro ($%d): ", jugador.getApuesta()/2);
-//        ingreso = scanner.nextInt();
-//        while (ingreso != 1 && ingreso != 0){
-//            System.out.println("[!] El numero ingresado no corresponde ni a '1' ni '0'.");
-//            System.out.println("Ingrese '1' para pagar el seguro o '0' para no pagar el seguro: ");
-//            // ingreso = scanner.nextInt();
-//        }
-//        if (ingreso == 1) jugador.setPagoSeguro(true);
-//        return ingreso;
-//    }
 
     public boolean tieneBlackjack(){
         if ((getMano().getFirst().equals("A")) && (getMano().get(1).equals("10") || getMano().get(1).getValor().equals("J") || getMano().get(1).getValor().equals("Q") || getMano().get(1).getValor().equals("K"))){
