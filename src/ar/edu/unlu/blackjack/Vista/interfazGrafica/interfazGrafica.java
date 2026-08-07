@@ -42,6 +42,7 @@ public class interfazGrafica extends JFrame implements IVista {
     private boolean faseJuego;
     private boolean esmiTurno;
     private boolean esperandoDecision;
+    private boolean esperandoProximaRonda;
 
     private String nicknameTemporal;
     private float saldoTemporal;
@@ -226,6 +227,10 @@ public class interfazGrafica extends JFrame implements IVista {
 
     private void accionComenzar() {
         if (!enSalaEspera || !misDatosConfigurados) return;
+        if (esperandoProximaRonda) {
+            actualizarEstado("Hay una partida en curso. Esperá a la próxima ronda.");
+            return;
+        }
 
         try {
             actualizarEstado("Intentando comenzar...");
@@ -725,6 +730,16 @@ public class interfazGrafica extends JFrame implements IVista {
     }
 
     @Override
+    public void mostrarPartidaEnCurso() {
+        SwingUtilities.invokeLater(() -> {
+            esperandoProximaRonda = true;
+            btnComenzar.setVisible(false);
+            btnComenzar.setEnabled(false);
+            actualizarEstado("Hay una partida en curso. Esperando a la próxima ronda...");
+        });
+    }
+
+    @Override
     public void mostrarSalaEspera(List<String> jugadores, int maximo) {
         SwingUtilities.invokeLater(() -> {
             enSalaEspera = true;
@@ -745,6 +760,7 @@ public class interfazGrafica extends JFrame implements IVista {
             enSalaEspera = false;
             faseJuego = false;
             votacionMostrada = false;
+            esperandoProximaRonda = false;
 
             // Solo resetear yaAposte si NO es mi turno
             if (!esMiTurnoActual) {

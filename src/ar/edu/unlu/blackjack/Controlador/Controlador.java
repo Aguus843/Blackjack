@@ -13,6 +13,7 @@ public class Controlador implements IControladorRemoto {
     private IVista vista;
     private Jugador jugadorActual;
     private String nickname;
+    private boolean esperandoIngreso;
 
     public Controlador(IVista vista){
         this.vista = vista;
@@ -223,15 +224,19 @@ public class Controlador implements IControladorRemoto {
                     this.vista.mostrarMensaje("Empataste con el crupier. Se te devolvió el monto apostado.\n");
                     break;
                 case JUGADOR_APOSTO:
+                    if (esperandoIngreso) break;
                     this.vista.mostrarMensaje("Apostaste el monto de " + String.format("%.2f", this.getApuestaJugador()) + "\n");
                     break;
                 case SALDO_AGREGADO_EMPATE:
+                    if (esperandoIngreso) break;
                     this.vista.mostrarMensaje("Se te devolvió el monto apostado! ($" + this.getApuestaJugador() + ")\n");
                     break;
                 case OFRECER_SEGURO:
+                    if (esperandoIngreso) break;
                     this.vista.ofrecerSeguro();
                     break;
                 case GANANCIA_SEGURO_PAGADA:
+                    if (esperandoIngreso) break;
                     vista.mostrarMensaje("[!] El seguro te devolvió la apuesta dado que el crupier tenía BJ!.");
                     vista.mostrarCartasJugador();
                     break;
@@ -240,22 +245,19 @@ public class Controlador implements IControladorRemoto {
                     break;
                 case DEVUELTO_POR_SEGURO:
                     this.vista.mostrarMensaje("Dado que el crupier tuvo BJ y vos también, se te devolvió el monto apostado por el seguro.\n");
-                case PERDIO_JUGADOR:
-                    this.vista.mostrarMensaje("El jugador " + this.getNickname() + " ha perdido.\n");
-                    break;
-                case GANADOR_JUGADOR:
-                    this.vista.mostrarMensaje("Felicidades " + this.getNickname() + " ganaste!\n");
-                    break;
                 case PUNTUACION_FINAL_CRUPIER:
                     this.vista.mostrarMensaje("El puntaje final del crupier es: " + this.getPuntajeCrupier() + "\n");
                     break;
                 case ADJUDICAR_GANANCIA:
+                    if (esperandoIngreso) break;
                     this.vista.mostrarMensaje("Felicitaciones! Ganaste la apuesta --> ($" + this.getApuestaJugador()*2 + ").\n");
                     break;
                 case ADJUDICAR_GANANCIA_BJ:
+                    if (esperandoIngreso) break;
                     this.vista.mostrarMensaje("Felicitaciones! Ganaste la apuesta con un BJ --> ($" + this.getApuestaJugador()*2.5 + ").\n");
                     break;
                 case APUESTA_AMBAS_MANOS:
+                    if (esperandoIngreso) break;
                     if (this.getJugadorDividio()) this.vista.mostrarMensaje(this.nickname + ": tu apuesta para ambas manos son -> Mano 1 (" + this.getApuestaJugador() + ") -> Mano 2 (" + this.getApuestaJugadorMano2() + ").\n");
                     break;
                 case CRUPIER_SE_PASO:
@@ -271,9 +273,11 @@ public class Controlador implements IControladorRemoto {
                     this.vista.mostrarPuntuacionParcialCrupier();
                     break;
                 case MOSTRAR_MANO_JUGADOR:
+                    if (esperandoIngreso) break;
                     this.vista.mostrarManoJugador();
                     break;
                 case CICLO_PARTIDA:
+                    if (esperandoIngreso) break;
                     this.vista.cicloPartida();
                     break;
                 case CAMBIAR_A_MANO2:
@@ -299,6 +303,14 @@ public class Controlador implements IControladorRemoto {
                 case JUGADOR_CONECTADO:
                     this.vista.mostrarMensaje("[!] Un jugador se ha conectado.\n");
                     break;
+                case JUEGO_EN_CURSO:
+                    // Solo le muestro este aviso al jugador que se acaba de conectar
+                    String ultimoConectado = modelo.getUltimoJugadorConectado();
+                    if (ultimoConectado != null && ultimoConectado.equals(nickname)) {
+                        esperandoIngreso = true;
+                        this.vista.mostrarPartidaEnCurso();
+                    }
+                    break;
                 case JUGADOR_MARCO_LISTO:
                     int listos = modelo.getCantidadJugadoresListos();
                     int total = modelo.getCantidadJugadoresConectados();
@@ -309,6 +321,7 @@ public class Controlador implements IControladorRemoto {
                     this.vista.mostrarSalaEspera(jugadores, modelo.getCantidadJugadoresConectados());
                     break;
                 case TODOS_JUGADORES_LISTOS:
+                    esperandoIngreso = false;
                     this.vista.comenzarPartida();
                     break;
                 case CARTA_REPARTIDA_JUGADOR:
@@ -329,6 +342,7 @@ public class Controlador implements IControladorRemoto {
                     }
                     break;
                 case INICIAR_VOTACION_NUEVA_PARTIDA:
+                    if (esperandoIngreso) break;
                     this.vista.mostrarVotacion();
                     break;
                 case ACTUALIZAR_VOTOS:
@@ -338,6 +352,7 @@ public class Controlador implements IControladorRemoto {
                     this.vista.mostrarMensaje("\n==== VOTACION COMPLETADA ====\n");
                     break;
                 case NUEVA_PARTIDA_INICIADA:
+                    esperandoIngreso = false;
                     this.vista.mostrarMensaje("\n==== NUEVA PARTIDA INICIADA ====\n");
                     this.vista.comenzarPartida();
                     break;
@@ -347,6 +362,7 @@ public class Controlador implements IControladorRemoto {
                     vista.mostrarMensaje("Gracias por jugar!\n");
                     break;
                 case PARTIDA_FINALIZADA:
+                    if (esperandoIngreso) break;
                     vista.mostrarResultados();
                     break;
                 default:

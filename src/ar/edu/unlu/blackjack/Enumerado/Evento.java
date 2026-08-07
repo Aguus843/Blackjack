@@ -2,8 +2,6 @@ package ar.edu.unlu.blackjack.Enumerado;
 
 public enum Evento {
     CRUPIER_BLACKJACK_Y_EMPATE,
-    PERDIO_JUGADOR,
-    GANADOR_JUGADOR,
     EMPATO_JUGADOR,
     JUGADOR_APOSTO,
     SALDO_AGREGADO_EMPATE,
@@ -33,6 +31,7 @@ public enum Evento {
     CAMBIAR_A_MANO2,
     OFRECER_SEGURO,
     GANANCIA_SEGURO_PAGADA,
+    JUEGO_EN_CURSO,
 
     // eventos para el sistema de votacion
     INICIAR_VOTACION_NUEVA_PARTIDA,

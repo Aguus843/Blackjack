@@ -49,4 +49,6 @@ public interface IVista {
 
     void accionVerRanking() throws RemoteException;
 
+    void mostrarPartidaEnCurso();
+
 }

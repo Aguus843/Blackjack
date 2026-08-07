@@ -36,6 +36,7 @@ public class consolaGrafica implements IVista {
     // ==================== SEGURO ====================
     // true mientras el servidor espera que el jugador responda la oferta de seguro
     private boolean esperandoRespuestaSeguro = false;
+    private boolean esperandoProximaRonda = false;
 
     public consolaGrafica() {
         iniciarConsola();
@@ -104,6 +105,7 @@ public class consolaGrafica implements IVista {
         enVotacion = false;
         votacionMostrada = false;
         esperandoRespuestaSeguro = false;
+        esperandoProximaRonda = false;
     }
 
     private void configurarEntradas() {
@@ -126,6 +128,12 @@ public class consolaGrafica implements IVista {
                 procesarConfiguracionInicial(entrada);
                 txtEntrada.setText("");
                 txtSalida.setCaretPosition(txtSalida.getDocument().getLength());
+                return;
+            }
+            // Si me conecté con una partida ya en curso, no participo del lobby
+            if (esperandoProximaRonda) {
+                mostrarMensaje("Todavía hay una partida en curso. Esperá a que termine para poder jugar.\n");
+                txtEntrada.setText("");
                 return;
             }
 
@@ -825,6 +833,20 @@ public class consolaGrafica implements IVista {
     }
 
     @Override
+    public void mostrarPartidaEnCurso() {
+        SwingUtilities.invokeLater(() -> {
+            misDatosConfigurados = true;
+            esperandoProximaRonda = true;
+
+            mostrarMensaje("\n" + linea(40) + "\n");
+            mostrarMensaje("HAY UNA PARTIDA EN CURSO\n");
+            mostrarMensaje(linea(40) + "\n\n");
+            mostrarMensaje("Vas a poder jugar en la próxima ronda.\n");
+            mostrarMensaje("Esperando a que termine la partida actual...\n\n");
+        });
+    }
+
+    @Override
     public void mostrarSalaEspera(List<String> jugadores, int maximo) {
         SwingUtilities.invokeLater(() -> {
             if (!juegoComenzado) {
@@ -856,6 +878,7 @@ public class consolaGrafica implements IVista {
             votacionMostrada = false;
             enVotacion = false;
             esperandoRespuestaSeguro = false; // resetear seguro también
+            esperandoProximaRonda = false;
 
             mostrarMensaje("\n" + linea(40) + "\n");
             mostrarMensaje("PARTIDA INICIADA!\n");
