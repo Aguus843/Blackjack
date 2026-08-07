@@ -8,6 +8,8 @@ import java.util.List;
 public interface IVista {
     void setControlador(Controlador controlador);
 
+    void configurarApariencia() throws RemoteException;
+    void inicializarEstados();
     void iniciarJuego();
     void mostrarMensaje(String mensaje);
     void mostrarCartasJugador() throws RemoteException;
@@ -44,4 +46,7 @@ public interface IVista {
     void accionDividir() throws RemoteException;
 
     void accionPedir() throws RemoteException;
+
+    void accionVerRanking() throws RemoteException;
+
 }

@@ -14,38 +14,32 @@ public class Crupier extends Jugador implements Serializable {
     }
 
     public List<Carta> getManoCarta() {
-        if (getManos().isEmpty()) {
-            throw new IllegalStateException("El crupier no tiene manos");
-        }
-        return getManos().get(0).getMano();
+        return getManos().getFirst().getMano();
     }
 
     public Mano getManoCrupier() {
-        if (getManos().isEmpty()) {
-            throw new IllegalStateException("El crupier no tiene manos");
-        }
-        return getManos().get(0);
+        return getManos().getFirst();
     }
 
     public int getPuntajeCrupier() {
         if (getManos().isEmpty()) {
             return 0;
         }
-        return getManos().get(0).getPuntaje();
+        return getManos().getFirst().getPuntaje();
     }
 
     public void pedirCarta(Carta carta) {
         if (getManos().isEmpty()) {
             agregarMano();
         }
-        getManos().get(0).recibirCarta(carta);
+        getManos().getFirst().recibirCarta(carta);
     }
 
     public boolean debePedirCarta() {
         if (getManos().isEmpty()) {
             return false;
         }
-        return getManos().get(0).getPuntaje() < LimiteCrupier;
+        return getManos().getFirst().getPuntaje() < LimiteCrupier;
     }
 
     public int getPuntaje() {

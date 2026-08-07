@@ -236,11 +236,6 @@ public class BlackjackJuego extends ObservableRemoto implements IBlackjackJuego 
         }
 
     @Override
-    public boolean hayJugadoresPendientesDeSeguro() throws RemoteException {
-        return !jugadoresPendientesSeguro.isEmpty();
-    }
-
-    @Override
     public void pagarGananciaSeguro(Jugador jugador) throws RemoteException {
         if (!jugador.getPagoSeguro()) return;
         float ganancia = jugador.getApuesta() * 3f; // devuelve lo apostado x3 (seguro + ganancia)

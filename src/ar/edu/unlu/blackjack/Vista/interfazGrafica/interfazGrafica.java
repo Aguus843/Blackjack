@@ -56,12 +56,13 @@ public class interfazGrafica extends JFrame implements IVista {
     public interfazGrafica() {
         super("Interfaz Gráfica - Blackjack :: Agustín Weisbek");
         inicializarEstados();
-        inicializarComponentes();
+        configurarApariencia();
         configurarVentana();
         configurarListeners();
     }
 
-    private void inicializarEstados() {
+    @Override
+    public void inicializarEstados() {
         enSalaEspera = true;
         misDatosConfigurados = false;
         faseApuestas = false;
@@ -78,7 +79,9 @@ public class interfazGrafica extends JFrame implements IVista {
         crupierCartaOculta = true;
     }
 
-    private void inicializarComponentes() {
+    //
+    @Override
+    public void configurarApariencia(){
         panelPrincipal = new JPanel(new BorderLayout(0, 0));
         panelPrincipal.setBackground(new Color(0, 100, 0));
 
@@ -344,7 +347,8 @@ public class interfazGrafica extends JFrame implements IVista {
         }
     }
 
-    private void accionVerRanking() {
+    @Override
+    public void accionVerRanking() {
         try {
             String rankingRaw = controlador.getRankingFormateado();
 
@@ -672,7 +676,7 @@ public class interfazGrafica extends JFrame implements IVista {
     }
 
     @Override
-    public void cicloPartida() throws RemoteException {
+    public void cicloPartida() {
         SwingUtilities.invokeLater(() -> {
             faseJuego = true;
             faseApuestas = false;

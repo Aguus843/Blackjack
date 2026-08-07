@@ -34,7 +34,7 @@ public class consolaGrafica implements IVista {
     private boolean votacionMostrada;
 
     // ==================== SEGURO ====================
-    // true mientras el servidor espera que este jugador responda la oferta de seguro
+    // true mientras el servidor espera que el jugador responda la oferta de seguro
     private boolean esperandoRespuestaSeguro = false;
 
     public consolaGrafica() {
@@ -80,7 +80,8 @@ public class consolaGrafica implements IVista {
         frame.getRootPane().setDefaultButton(btnEnter);
     }
 
-    private void configurarApariencia() {
+    @Override
+    public void configurarApariencia() {
         txtSalida.setBackground(Color.BLACK);
         txtSalida.setForeground(Color.GREEN);
         txtSalida.setCaretColor(Color.GREEN);
@@ -88,7 +89,8 @@ public class consolaGrafica implements IVista {
         contentPane.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
     }
 
-    private void inicializarEstados() {
+    @Override
+    public void inicializarEstados() {
         enSalaEspera = true;
         misDatosConfigurados = false;
         esperandoNickname = true;
@@ -161,14 +163,14 @@ public class consolaGrafica implements IVista {
             }
 
             if (entrada.equalsIgnoreCase("ranking")) {
-                mostrarRanking();
+                accionVerRanking();
                 txtEntrada.setText("");
                 txtSalida.setCaretPosition(txtSalida.getDocument().getLength());
                 return;
             }
 
             if (entrada.toLowerCase().startsWith("recargar")) {
-                procesarRecarga(entrada);
+                accionRecargarSaldo(entrada);
                 txtEntrada.setText("");
                 txtSalida.setCaretPosition(txtSalida.getDocument().getLength());
                 return;
@@ -185,7 +187,7 @@ public class consolaGrafica implements IVista {
             // Fase de apuestas
             if (faseApuestas) {
                 if (esmiTurno) {
-                    procesarApuesta(entrada);
+                    accionApostar(entrada);
                 } else {
                     mostrarMensaje("Esperando tu turno para apostar...\n");
                 }
@@ -222,7 +224,8 @@ public class consolaGrafica implements IVista {
         txtSalida.setCaretPosition(txtSalida.getDocument().getLength());
     }
 
-    private void mostrarRanking() {
+    @Override
+    public void accionVerRanking() {
         try {
             String rankingRaw = controlador.getRankingFormateado();
 
@@ -257,7 +260,7 @@ public class consolaGrafica implements IVista {
     /**
      * comando "RECARGAR <monto>"
      */
-    private void procesarRecarga(String entrada) throws RemoteException {
+    private void accionRecargarSaldo(String entrada) throws RemoteException {
         String[] partes = entrada.trim().split("\\s+");
 
         if (partes.length != 2) {
@@ -480,7 +483,7 @@ public class consolaGrafica implements IVista {
                 break;
 
             case "ranking":
-                mostrarRanking();
+                accionVerRanking();
                 break;
 
             default:
@@ -507,8 +510,7 @@ public class consolaGrafica implements IVista {
         mostrarSalaEspera(jugadores, 0);
     }
 
-
-    private void procesarApuesta(String entrada) throws RemoteException {
+    private void accionApostar(String entrada) throws RemoteException {
         if (!entrada.matches("\\d*\\.?\\d+")) {
             mostrarMensaje("Ingresa un número válido.\n");
             return;
@@ -592,7 +594,7 @@ public class consolaGrafica implements IVista {
                 break;
 
             case "ranking":
-                mostrarRanking();
+                accionVerRanking();
                 break;
 
             default:
@@ -707,7 +709,7 @@ public class consolaGrafica implements IVista {
             return;
         }
 
-        mostrarMensaje("[LOG] CONTROLADOR.JUGADORDOBLOMANO()...");
+        // mostrarMensaje("[LOG] CONTROLADOR.JUGADORDOBLOMANO()...");
         controlador.jugadorDobloMano();
 
         try {
@@ -716,9 +718,6 @@ public class consolaGrafica implements IVista {
         }
 
         float apuestaDespues = controlador.getApuestaJugador();
-        float saldoDespues = controlador.getSaldoJugadorActual();
-
-        mostrarMensaje("[DESPUÉS] Apuesta: $" + String.format("%.0f", apuestaDespues) + " | Saldo: $" + String.format("%.0f", saldoDespues) + "\n");
         mostrarMensaje("\nDoblaste tu apuesta! Apuesta total: $" + String.format("%.0f", apuestaDespues) + "\n");
         mostrarMensaje("Recibis una carta y te plantas automáticamente.\n");
 

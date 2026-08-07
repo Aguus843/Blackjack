@@ -6,7 +6,7 @@ import ar.edu.unlu.blackjack.Vista.ConsolaGrafica.consolaGrafica;
 import java.rmi.RemoteException;
 
 public class BlackjackApp {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws RemoteException {
         // Consola Grafica
         IBlackjackJuego modelo = new BlackjackJuego();
         consolaGrafica vista = new consolaGrafica();

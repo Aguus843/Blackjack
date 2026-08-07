@@ -81,10 +81,6 @@ public class Jugador implements Serializable {
             }
         }
     }
-    public void retirarSaldo(float monto){
-        if (monto > 0) saldo.retirarSaldo(monto);
-        else if (saldo.retirarSaldo(-monto)) return;
-    }
 
     // Metodo que reparte a UNA mano.
     public void repartirCartaAMano(int indexMano, Carta carta){

@@ -15,7 +15,7 @@ import ar.edu.unlu.rmimvc.cliente.Cliente;
 
 public class AppClienteConsola {
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws RemoteException {
         ArrayList<String> ips = Util.getIpDisponibles();
         String ip = (String) JOptionPane.showInputDialog(
                 null,
